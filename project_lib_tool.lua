@@ -17,12 +17,13 @@ function addProject_lib_tool(_name, _toolName)
 
 		project().path = getProjectPath(_name, ProjectPath.Dir) .. "/tools/" .. _toolName .. "/"
 
-		local	sourceFiles = mergeTables(	{ project().path .. "**.cpp" },
-											{ project().path .. "**.h" } )
+		local headerFiles	= os.matchfiles( project().path .. "**.h" )
+		local sourceFiles	= mergeTables(	{ project().path .. "**.cpp" }, headerFiles )
+
 		files  { sourceFiles }
 
 		local withBGFX = false
-		for _,file in ipairs( sourceFiles ) do
+		for _,file in ipairs( headerFiles ) do
 			local SourceCode = file_read(file);
 			if SourceCode:find("#define RAPP_WITH_BGFX") then -- NB: a single space character between 'define' and 'RAPP_WITH_BGFX'
 				withBGFX = true
