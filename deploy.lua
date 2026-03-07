@@ -23,10 +23,6 @@ newoption {
 	description = "Include deployment step.",
 }
 
-function script_dir()
-	return path.getdirectory(debug.getinfo(2, "S").source:sub(2)) .. "/"
-end
-
 Permissions = {
 	AccessNetworkState	= {},
 	Internet			= {},

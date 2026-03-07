@@ -5,10 +5,6 @@
 -- Based on toolchain.lua from https://github.com/bkaradzic/bx
 --
 
-function script_dir()
-	return path.getdirectory(debug.getinfo(2, "S").source:sub(2)) .. "/"
-end
-
 local params = { ... }
 local EXECUTABLE	= params[1]
 local IS_3RD_PARTY	= params[2]

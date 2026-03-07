@@ -11,7 +11,7 @@ local RTM_ADD_SEARCH_PATH = params[1] or nil
 --------------------------------------------------------
 
 function script_dir()
-	return debug.getinfo(2, "S").source:sub(2):match("(.*[/\\])") 
+	return path.getdirectory(debug.getinfo(2, "S").source:sub(2)) .. "/"
 end
 
 RTM_SCRIPTS_DIR			= script_dir()
