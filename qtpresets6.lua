@@ -165,7 +165,7 @@ function qtConfigure( _platform, _configuration, _projectName, _mocfiles, _qrcfi
 			-- should run this first (path may vary):
 			-- export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/home/user/Qt5.7.0/5.7/gcc_64/lib/pkgconfig
 			-- lfs support is required too: sudo luarocks install luafilesystem
-			local qtLinks = QT_LIB_PREFIX .. table.concat( libsToLink, " " .. QT_LIB_PREFIX )
+			local qtLinks = QT_LIB_PREFIX .. table.concat( _libsToLink, " " .. QT_LIB_PREFIX )
 
 			local qtLibs  = "pkg-config --libs " .. qtLinks
 			local qtFlags = "pkg-config --cflags " .. qtLinks
@@ -182,7 +182,7 @@ function qtConfigure( _platform, _configuration, _projectName, _mocfiles, _qrcfi
 			linkoptions { qtLibs }
 
 		elseif os.is("macosx") then
-			buildoptions { qtFlags }
+			-- buildoptions { qtFlags }
 			for _,lib in ipairs(_libsToLink) do
 				print("Linking framework: " .. libsDirectory .. "Qt" .. lib .. ".framework")
 				-- make symbolic link to header files directory

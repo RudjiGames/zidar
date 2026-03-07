@@ -15,8 +15,8 @@ local IS_3RD_PARTY	= params[2]
 
 dofile(RTM_SCRIPTS_DIR .. "deploy.lua")
 
-local androidTarget    = "24"
-local androidPlatform  = "android-" .. androidTarget
+androidTarget    = "24"
+androidPlatform  = "android-" .. androidTarget
 
 newoption {
 	trigger = "gcc",
