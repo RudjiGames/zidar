@@ -37,5 +37,5 @@ function addProject_cmd(_name)
 																	false,	-- WITH_QT
 																	true	-- EXECUTABLE
 																	)
-		addDependencies(_name)
+		addDependencies(project().name)
 end

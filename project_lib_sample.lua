@@ -70,5 +70,5 @@ function addProject_lib_sample(_name, _sampleName)
 			dependencies = mergeTables(dependencies, {"rapp"})
 		end
 
-		addDependencies(_sampleName, dependencies)
+		addDependencies(project().name, dependencies)
 end

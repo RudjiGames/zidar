@@ -77,5 +77,5 @@ function addProject_qt(_name, _libProjNotExe, _includes, _prebuildcmds, _extraQt
 			prebuildcommands {cmd}
 		end
 		
-		addDependencies(_name)
+		addDependencies(project().name)
 end

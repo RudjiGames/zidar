@@ -42,6 +42,5 @@ function addProject_game(_name)
 																	true	-- EXECUTABLE
 																	)
 
-		addDependencies(_name, { {"rapp", "bgfx"} })
+		addDependencies(project().name, { {"rapp", "bgfx"} })
 end
-

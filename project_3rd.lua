@@ -30,5 +30,5 @@ function addProject_3rdParty_lib(_name, _libFiles, _exceptions)
 																	nil,	-- PROJECT_NAME
 																	true	-- IS_3RD_PARTY
 																	)
-		addDependencies(project().name)															
+		addDependencies(project().name)
 end
