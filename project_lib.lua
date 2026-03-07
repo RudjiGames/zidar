@@ -62,7 +62,7 @@ function addProject_lib(_name, _libType, _shared, _nameAppend, _disablePCH)
 			addPCH( srcFilesPath, _name )
 		end
 
-		shaderFiles	= os.matchfiles( srcFilesPath .. "**.sc" )
+		local shaderFiles	= os.matchfiles( srcFilesPath .. "**.sc" )
 
 		includedirs	{
 			libsPath, 

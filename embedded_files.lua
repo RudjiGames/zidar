@@ -20,8 +20,6 @@ function shaderConfigure( _platform, _configuration, _projectName, _shaderFiles 
 		LUAEXE = "lua.exe "
 	end
 
-	local addedFiles = {}
-
 	-- Set up shader pre-build steps
 	for _,file in ipairs( _shaderFiles ) do
 		local scFile = stripExtension(file)
@@ -51,5 +49,5 @@ function shaderConfigure( _platform, _configuration, _projectName, _shaderFiles 
 	end
 
 	configuration {}
-	return addedFiles
+	return {}
 end

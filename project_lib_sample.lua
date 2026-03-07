@@ -19,14 +19,14 @@ function addProject_lib_sample(_name, _sampleName)
 		project().path = libsPath .. "/" .. _name .. "/"
 
 		local srcFilesPath = project().path .. "samples/" .. _sampleName .. "/"
-		local incFilesPath = project().path .. "samples/" .. _sampleName .. "/"
+		local incFilesPath = srcFilesPath .. "**.h"
 
 		local	sourceFiles = mergeTables(	{ srcFilesPath .. "**.cpp" },
-											{ incFilesPath .. "**.h" } )
+											{ incFilesPath } )
 		files  { sourceFiles }
 
 		local withBGFX = false
-		local headers = os.matchfiles( incFilesPath .. "**.h")
+		local headers = os.matchfiles( incFilesPath )
 		for _,file in ipairs( headers ) do
 			local headerSrc = file_read(file);
 			if headerSrc:find("#define RAPP_WITH_BGFX") then -- NB: a single space character between 'define' and 'RAPP_WITH_BGFX'

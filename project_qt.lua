@@ -66,11 +66,6 @@ function addProject_qt(_name, _libProjNotExe, _includes, _prebuildcmds, _extraQt
 			buildoptions { "-fPIC" }
 		end
 
-		local outputDir = RTM_OUT_DIR
-		if _libProjNotExe == true then
-			outputDir = RTM_LIB_DIR
-		end
-
 		assert(loadfile(RTM_SCRIPTS_DIR .. "configurations.lua"))(	sourceFiles,
 																	false,					-- IS_LIBRARY
 																	false,					-- IS_SHARED_LIBRARY
@@ -84,4 +79,3 @@ function addProject_qt(_name, _libProjNotExe, _includes, _prebuildcmds, _extraQt
 		
 		addDependencies(_name)
 end
-
