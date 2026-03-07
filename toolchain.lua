@@ -837,7 +837,7 @@ function commonConfig(_platform, _configuration, _isLib, _isSharedLib, _executab
 	}
 
 	flags {
-		"Cpp17",
+		"Cpp20",
 		"ExtraWarnings",
 		"FloatFast",
 	}
