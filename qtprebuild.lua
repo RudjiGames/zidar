@@ -271,13 +271,13 @@ elseif arg[1] == "-ts" then
 
 		local fullTSPath = qtTSExe.." \""..arg[2].."\""
 		if windows then
-			fullTSPath = '""'..qtTSExe..'" "'..arg[2]
+			fullTSPath = '""' .. qtTSExe .. '" "' .. arg[2] .. '""'
 		end
 
 		if false == runProgram( fullTSPath) then
-			print( BuildErrorWarningString( debug.getinfo(1).currentline, true, [[UIC Failed to generate ]]..outputFileName, 7 ) ); io.stdout:flush()
+			print( BuildErrorWarningString( debug.getinfo(1).currentline, true, [[Translation Failed to generate ]]..outputFileName, 7 ) ); io.stdout:flush()
 		else
-			--print( "UIC Created "..outputFileName )
+			--print( "Translation Created "..outputFileName )
 			io.stdout:flush()
 		end		
 end

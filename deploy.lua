@@ -40,7 +40,7 @@ function convertImage(_src, _dst, _width, _height)
 end
 
 function cloneDir(_copySrc, _copyDst)
-	srcFiles = os.matchfiles(_copySrc .. "**.*")
+	local srcFiles = os.matchfiles(_copySrc .. "**.*")
 
 	for _,srcFile in ipairs(srcFiles) do
 		local fileName		= path.getname(srcFile)
@@ -60,7 +60,7 @@ function cloneDir(_copySrc, _copyDst)
 end
 
 function cloneDirWithSed(_copySrc, _copyDst, _sedCmd, _rename)
-	srcFiles = os.matchfiles(_copySrc .. "**.*")
+	local srcFiles = os.matchfiles(_copySrc .. "**.*")
 
 	for _,srcFile in ipairs(srcFiles) do
 		local fileName		= path.getname(srcFile)

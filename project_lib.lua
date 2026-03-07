@@ -10,7 +10,7 @@ function addProject_lib(_name, _libType, _shared, _nameAppend, _disablePCH)
 	if _libType == Lib.Tool then
 		group ("libs_tools")
 	elseif _libType == Lib.Game then
-		group ("liba_game")
+		group ("libs_game")
 	else
 		group ("libs")
 	end
