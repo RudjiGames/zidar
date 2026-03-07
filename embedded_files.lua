@@ -9,7 +9,6 @@ function shaderConfigure( _platform, _configuration, _projectName, _shaderFiles 
 		return
 	end
 
-	local sourcePath				= path.getabsolute(RTM_ROOT_DIR .. "src/tools/qt/" .. _projectName .. "/src/") .. "/"
 	local SHADER_PREBUILD_LUA_PATH	= '"' .. RTM_ROOT_DIR .. "build/embedded_shader_prebuild.lua" .. '"'
 
 	flatten( _shaderFiles )
@@ -23,7 +22,7 @@ function shaderConfigure( _platform, _configuration, _projectName, _shaderFiles 
 
 	local addedFiles = {}
 
-	-- Set up Qt pre-build steps and add the future generated file paths to the pkg
+	-- Set up shader pre-build steps
 	for _,file in ipairs( _shaderFiles ) do
 		local scFile = stripExtension(file)
 		local scFileBase = path.getbasename(file)
@@ -31,11 +30,7 @@ function shaderConfigure( _platform, _configuration, _projectName, _shaderFiles 
 		if scFileBase ~= "varying.def" then
 
 			local outFile = path.getabsolute(scFile .. '.bin.h')
-			local outFileTemp = path.getabsolute(scFile .. '.bin.h.temp')
-
-			local shaderType = ""
-
-			local includesDirs = " -i " .. RTM_ROOT_DIR .. "3rd/bgfx/src/" .. " -i " .. RTM_ROOT_DIR .. "3rd/bgfx/examples/common/"
+			--local includesDirs = " -i " .. RTM_ROOT_DIR .. "3rd/bgfx/src/" .. " -i " .. RTM_ROOT_DIR .. "3rd/bgfx/examples/common/"
 
 			local srcFile = path.getabsolute(file)
 			local dstFile = path.getabsolute(outFile)
@@ -58,4 +53,3 @@ function shaderConfigure( _platform, _configuration, _projectName, _shaderFiles 
 	configuration {}
 	return addedFiles
 end
-

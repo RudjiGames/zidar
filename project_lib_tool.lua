@@ -22,10 +22,9 @@ function addProject_lib_tool(_name, _toolName)
 		files  { sourceFiles }
 
 		local withBGFX = false
-		local headers = os.matchfiles( sourceFiles .. "**.h")
-		for _,file in ipairs( headers ) do
-			local headerSrc = file_read(file);
-			if headerSrc:find("#define RAPP_WITH_BGFX") then -- NB: a single space character between 'define' and 'RAPP_WITH_BGFX'
+		for _,file in ipairs( sourceFiles ) do
+			local SourceCode = file_read(file);
+			if SourceCode:find("#define RAPP_WITH_BGFX") then -- NB: a single space character between 'define' and 'RAPP_WITH_BGFX'
 				withBGFX = true
 				break
 			end

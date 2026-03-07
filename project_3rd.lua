@@ -9,7 +9,6 @@ function addProject_3rdParty_lib(_name, _libFiles, _exceptions)
 	group ("3rd")
 	project ( _name )
 		_exceptions			= _exceptions or false
-		_includes			= _includes or {}
 
 		language	"C++"
 		kind		"StaticLib"

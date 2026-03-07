@@ -3,7 +3,7 @@
 -- License: http://www.opensource.org/licenses/BSD-2-Clause
 --
 
-function addProject_cmd(_name, _projectPath)
+function addProject_cmd(_name)
 
 	if _ACTION == nil then return end
 
