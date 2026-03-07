@@ -165,7 +165,7 @@ function prepareDeployment_Android(_platform, _configuration, _binDir)
 
 	local sedCmd = sedGetBinary() .. " -e " .. '"'
 
-	sedCmd = sedAppendReplace(sedCmd, "@@BUILD_CONFIGURATION@@",	_filter[2])
+	sedCmd = sedAppendReplace(sedCmd, "@@BUILD_CONFIGURATION@@",	_configuration)
 	sedCmd = sedAppendReplace(sedCmd, "@@ARCH@@",					str_arch)
 	sedCmd = sedAppendReplace(sedCmd, "@@ANDROID_VER@@",			androidTarget)
 	sedCmd = sedAppendReplace(sedCmd, "@@VERSION@@",				desc.version)

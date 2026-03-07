@@ -43,7 +43,7 @@ function addProject_qt(_name, _libProjNotExe, _includes, _prebuildcmds, _extraQt
 
 		files  { sourceFiles }
 
-		mocFiles	=	{ os.matchfiles( project().path .. "inc/**.h"), os.matchfiles( project().path .. "src/**.h"), os.matchfiles(headersPath) }
+		mocFiles	=	{ os.matchfiles( project().path .. "inc/**.h"), os.matchfiles( project().path .. "src/**.h") }
 		uiFiles		=	{ os.matchfiles( project().path .. "src/**.ui") }
 		qrcFiles	= 	{ os.matchfiles( project().path .. "src/**.qrc") }
 		tsFiles		= 	{ os.matchfiles( project().path .. "src/**.ts") }

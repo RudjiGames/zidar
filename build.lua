@@ -731,8 +731,8 @@ function file_get_time(filepath)
 		pipe:close()
 		return output:match"\n(%d.-:%S*)"
 	else
-		local pipe = io.popen("stat -c %Y testfile")
-		local last_modified = f:read()
+		local pipe = io.popen("stat -c %Y " .. filepath)
+		local last_modified = pipe:read("*a")
 		pipe:close()
 		return last_modified
 	end

@@ -41,7 +41,7 @@ function addProject_lib(_name, _libType, _shared, _nameAppend, _disablePCH)
 		project().path = projectPath
 
 		local srcFilesPath  = projectPath .. "/src/"
-		local incFilesPath  = projectPath .. "/inc/"
+		local incFilesPath  = projectPath .. "/inc"
 
 		local	sourceFiles = mergeTables(	{ srcFilesPath .. "**.cpp" },
 											{ srcFilesPath .. "**.cxx" },
