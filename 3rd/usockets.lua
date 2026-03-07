@@ -19,12 +19,12 @@ end
 
 function projectExtraConfigExecutable_usockets()
 	includedirs { US_ROOT .. "src/" }
-	flags   { "Cpp17" }
+	flags   { "Cpp20" }
 end
 
 function projectExtraConfig_usockets()
 	defines {  "WITH_WOLFSSL=1", "WITH_LIBUV=1"  }
-	flags   { "Cpp17" }
+	flags   { "Cpp20" }
 end
 function projectAdd_usockets()
 	addProject_3rdParty_lib("usockets", US_FILES)

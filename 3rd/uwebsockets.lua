@@ -19,7 +19,7 @@ end
 
 function projectExtraConfigExecutable_uwebsockets()
 	includedirs { UWS_ROOT .. "src/" }
-	flags   { "Cpp17" }
+	flags   { "Cpp20" }
 end
 
 function projectHeaderOnlyLib_uwebsockets()
@@ -27,7 +27,7 @@ end
 
 function projectExtraConfig_uwebsockets()
 	defines {  "WITH_WOLFSSL=1", "WITH_LIBUV=1"  }
-	flags   { "Cpp17" }
+	flags   { "Cpp20" }
 end
 function projectAdd_uwebsockets()
 	addProject_3rdParty_lib("uwebsockets", UWS_FILES)

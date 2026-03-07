@@ -146,7 +146,7 @@ function qtConfigure( _platform, _configuration, _projectName, _mocfiles, _qrcfi
 					buildoptions( "/FI" .. '"' .. _projectName .. "_pch.h" .. '"' .. " " )
 					-- 4127 conditional expression is constant
 					-- 4275 non dll-interface class 'stdext::exception' used as base for dll-interface class 'std::bad_cast'
-					buildoptions( "/wd4127 /wd4275 /Zc:__cplusplus /std:c++17 /permissive-" ) 
+					buildoptions( "/wd4127 /wd4275 /Zc:__cplusplus /std:c++20 /permissive-" ) 
 			end
 
 			for _, lib in ipairs( _libsToLink ) do

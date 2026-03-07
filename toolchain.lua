@@ -861,7 +861,7 @@ function commonConfig(_platform, _configuration, _isLib, _isSharedLib, _executab
 		buildoptions {
 			"/Zc:preprocessor",
 			"/Zc:__cplusplus",
-			"/std:c++17",
+			"/std:c++20",
 			"/Ob2"		-- The Inline Function Expansion
 		}
 		linkoptions {
