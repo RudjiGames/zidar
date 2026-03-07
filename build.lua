@@ -170,8 +170,8 @@ dofile (RTM_SCRIPTS_DIR .. "project_qt.lua")
 -- helper functions
 --------------------------------------------------------
 function mergeTwoTables(_table1, _table2)
-	table1 = table1 or {}
-	table2 = table2 or {}
+	_table1 = _table1 or {}
+	_table2 = _table2 or {}
 	local mergedTable = {}
 	local hash = {}
 	for _,v1 in ipairs(_table1) do 
@@ -426,7 +426,6 @@ end
 function configDependency(dependency)
 	local dependency = getProjectFullName(dependency)
 	if _G["projectDependencyConfig_" .. dependency] ~= nil then -- prebuilt libs have no projects
-	print(dependency .. " " )
 		return _G["projectDependencyConfig_" .. dependency]()
 	end
 end
@@ -726,7 +725,7 @@ end
 
 --
 function file_get_time(filepath)
-	if windows then
+	if os.is("windows") then
 		local pipe = io.popen('dir /4/tw "'..filepath..'"')
 		local output = pipe:read"*a"
 		pipe:close()
@@ -740,17 +739,6 @@ function file_get_time(filepath)
 end
 
 -- 
-function file_is_upToDate(outputFileName) 
-	if file_exists(outputFileModTime) and ( inputFileModTime < outputFileModTime ) then
-		--print( outputFileName.." is up-to-date, not regenerating" )
-		io.stdout:flush()
-		return true
-	else
-		print( outputFileName .. " is out of date, regenerating" )
-	end
-	return false
-end
-
 function getFileNameNoExtFromPath( path )
 	local i = 0
 	local lastSlash = 0

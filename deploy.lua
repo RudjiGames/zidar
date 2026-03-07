@@ -122,7 +122,7 @@ function prepareProjectDeployment(_platform, _configuration, _binDir)
 		getTargetOS() == "winphone81"	or
 		getTargetOS() == "winstore81"	or
 		getTargetOS() == "winstore82"	then
-		prepareDeployment_Windows(_filer, _binDir)	return
+		prepareDeployment_Windows(_platform, _configuration, _binDir)	return
 	end
 
 	return "switch"
@@ -130,6 +130,25 @@ function prepareProjectDeployment(_platform, _configuration, _binDir)
 end
 
 imagesConverted = {}
+
+-- Xbox one logo/splash dims
+-- 56 x 56
+-- 100 x 100
+-- 208 x 208
+-- 480 x 480
+-- 1920 x 1080
+
+function prepareDeployment_iOS(_platform, _configuration, _binDir)
+end
+
+function prepareDeployment_AsmJS(_platform, _configuration, _binDir)
+end
+
+function prepareDeployment_Linux(_platform, _configuration, _binDir)
+end
+
+function prepareDeployment_OSX(_platform, _configuration, _binDir)
+end
 
 function prepareDeployment_Android(_platform, _configuration, _binDir)
 	local copyDst = _binDir .. "deploy/" .. project().name .. "/"
@@ -175,28 +194,6 @@ function prepareDeployment_Android(_platform, _configuration, _binDir)
 	end
 
 	-- dodati post build command prema filteru
-end
-
--- Xbox one logo/splash dims
--- 56 x 56
--- 100 x 100
--- 208 x 208
--- 480 x 480
--- 1920 x 1080
-
-function prepareDeployment_iOS(_platform, _configuration, _binDir)
-end
-
-function prepareDeployment_AsmJS(_platform, _configuration, _binDir)
-end
-
-function prepareDeployment_Linux(_platform, _configuration, _binDir)
-end
-
-function prepareDeployment_OSX(_platform, _configuration, _binDir)
-end
-
-function prepareDeployment_Android(_platform, _configuration, _binDir)
 end
 
 function prepareDeployment_Windows(_platform, _configuration, _binDir)
