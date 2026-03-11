@@ -143,10 +143,10 @@ function addPCH(_path, _name)
 	local PCH = getPCHPath(_path, _name)
 	if PCH ~= nil and not os.is("macosx") then
 		pchheader (PCH)
-		if path.isFile(_path .. _name .. "_pch.cpp") then
+		if os.isfile(_path .. _name .. "_pch.cpp") then
 			pchsource (_path .. _name .. "_pch.cpp")
 		end
-		if path.isFile(_path .. _name .. "_pch.c") then -- support C projects as well
+		if os.isfile(_path .. _name .. "_pch.c") then -- support C projects as well
 			pchsource (_path .. _name .. "_pch.c")
 		end
 	end
