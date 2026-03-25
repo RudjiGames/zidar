@@ -411,8 +411,8 @@ function checkPrerequisite(_toolName)
 end
 
 checkPrerequisite( "git" )
-checkPrerequisite( "make" )
-checkPrerequisite( "ninja" )
+--checkPrerequisite( "make" )
+--checkPrerequisite( "ninja" )
 if isRunningOnWindows() then
 	checkPrerequisite( "sed" )
 end
