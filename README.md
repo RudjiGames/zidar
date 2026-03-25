@@ -1,4 +1,4 @@
-![zidar logo](https://github.com/RudjiGames/imagus/blob/main/zidar/doc/zidar_logo.png)
+![zidar logo](https://raw.githubusercontent.com/RudjiGames/zidar/refs/heads/master/doc/zidar_logo.png)
 
 [![License](https://img.shields.io/badge/license-BSD--2%20clause-blue.svg)](https://github.com/RudjiGames/zidar/blob/master/LICENSE)
 
