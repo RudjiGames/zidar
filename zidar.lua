@@ -464,7 +464,7 @@ local _projectIsCPPExtensions = {
 
 -- Returns true if any of the project files have a C++ extension
 function projectIsCPP(_projectFiles)
-	local cacheKey = projectNameCleanup(project().name)
+	local cacheKey = table.concat(_projectFiles, "\n")
 	local cached = _projectIsCPPCache[cacheKey]
 	if cached ~= nil then
 		return cached
@@ -473,7 +473,14 @@ function projectIsCPP(_projectFiles)
 	for _, entry in ipairs(_projectFiles) do
 		local extension = string.lower(path.getextension(entry))
 		if _projectIsCPPExtensions[extension] then
-			if os.isfile(entry) then
+			local exists = false
+			if string.find(entry, "*", 1, true) ~= nil then
+				exists = next(os.matchfiles(entry)) ~= nil
+			else
+				exists = os.isfile(entry)
+			end
+
+			if exists then
 				_projectIsCPPCache[cacheKey] = true
 				return true
 			end
