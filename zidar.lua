@@ -171,10 +171,10 @@ if premake and premake.action and premake.action.call then
 end
 
 enableUTF8()
-print(	textColor("\xE2\x96\x91\xE2\x96\x92\xE2\x96\x93\xE2\x96\x88", Color.Green) .. " " ..
+print(	textColor("\xE2\x96\x91\xE2\x96\x92\xE2\x96\x93", Color.Green) .. " " ..
 		textColor("zidar", Color.Green) ..
 		textColor(" v" .. Version.High .. "." .. Version.Low, Color.Green) .. " " ..
-		textColor("\xE2\x96\x88\xE2\x96\x93\xE2\x96\x92\xE2\x96\x91", Color.Green) )
+		textColor("\xE2\x96\x93\xE2\x96\x92\xE2\x96\x91", Color.Green) )
 atexit(function()
     disableUTF8()
 end)
