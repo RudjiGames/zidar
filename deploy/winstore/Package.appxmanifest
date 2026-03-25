@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  IgnorableNamespaces="uap mp">
+
+  <Identity Name="@@SHORT_NAME@@"
+            Publisher="CN=@@PUBLISHER_COMPANY@@, O=@@PUBLISHER_ORG@@, L=@@PUBLISHER_LOCATION@@, S=@@PUBLISHER_STATE@@, C=@@PUBLISHER_COUNTRY@@"
+            Version="@@VERSION@@" />
+
+  <mp:PhoneIdentity PhoneProductId="4629f890-5be5-4fe7-8817-f6a983e6099d" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+
+  <Properties>
+    <DisplayName>@@LONG_NAME@@</DisplayName>
+    <PublisherDisplayName>@@PUBLISHER_COMPANY@@</PublisherDisplayName>
+    <Logo>@@LOGO_50@@</Logo>
+    <Description>@@DESCRIPTION@@</Description>
+  </Properties>
+  
+  <Resources>
+    <Resource Language="en-us"/>
+  </Resources>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.15063.0" MaxVersionTested="10.0.15063.0" />
+  </Dependencies>
+
+  <Applications>
+
+        <!--- Config -->
+        <!--- 'Id' is in the aumid returned from deploy  -->
+        <!--- 'Executable' must match the .exe produced by the build  -->
+        <Application Id="@@SHORT_NAME@@"
+        Executable="$targetnametoken$.exe"
+            EntryPoint="@@SHORT_NAME@@.App">
+			<!--- all fields except DisplayName not yet implemented -->
+		<uap:VisualElements
+	        DisplayName="@@LONG_NAME@@"
+    	    Square150x150Logo="@@LOGO_150@@"
+        	Square44x44Logo="@@LOGO_44@@"
+	        Description="@@DESCRIPTION@@"
+    	    BackgroundColor="#000040">
+        	<uap:DefaultTile Wide310x150Logo="@@LOGO_620@@"/>
+	        <uap:SplashScreen Image="@@LOGO_1920@@" />
+		</uap:VisualElements>
+        </Application>
+
+    </Applications>
+  <Capabilities>
+    <Capability Name="internetClientServer" />
+  </Capabilities>
+</Package>
