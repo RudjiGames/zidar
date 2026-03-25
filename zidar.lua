@@ -857,6 +857,15 @@ function projectGetPaths(_name)
 	return projectGetScriptPath(_name), projectGetPath(_name)
 end
 
+-- Returns the public header directory for a project ("include" or "inc"), or nil if neither exists
+function projectGetIncludePath(_projectPath)
+	local inclPath = _projectPath .. "/include"
+	if pathIsDirCached(inclPath) then return inclPath end
+	local incPath = _projectPath .. "/inc"
+	if pathIsDirCached(incPath) then return incPath end
+	return nil
+end
+
 -- Adds a directory to the include path if it exists
 function addIncludePath(_name, _path)
 	assert(_path ~= nil)

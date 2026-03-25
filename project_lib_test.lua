@@ -18,7 +18,8 @@ function addProject_lib_test(_name)
 		local projectPath		= projectGetPath(_name)
 		local projectPathTests	= projectPath .. "/tests"
 
-		includedirs {	projectPath .. "/include",
+		local incFilesPath = projectGetIncludePath(projectPath)
+		includedirs {	incFilesPath,
 						projectPathTests }
 
 		local sourceFiles	= projectSourceFilesWildcard(projectPathTests)

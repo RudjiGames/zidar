@@ -25,7 +25,7 @@ function addProject_lib(_name, _libType, _shared, _disablePCH)
 		local libsPath		= path.getdirectory(projectPath)
 
 		local srcFilesPath	= projectPath .. "/src"
-		local incFilesPath	= projectPath .. "/include"
+		local incFilesPath	= projectGetIncludePath(projectPath)
 		local sourceFiles	= projectSourceFilesWildcard(srcFilesPath, incFilesPath)
 
 		if projectIsCPP(sourceFiles) then
