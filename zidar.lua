@@ -96,7 +96,7 @@ end
 
 -- Prints a red error message and terminates the build
 function printErrorAndExit(_message)
-	print(textColor("ERROR:", Color.Red, Color.Yellow, true) .. " " .. textColor(_message, Color.Yellow))
+	print(textColor("ERROR:", Color.Red, nil, true) .. " " .. textColor(_message, Color.Yellow))
 	disableUTF8()
 	os.exit(1)
 end
@@ -310,7 +310,7 @@ function addPCH(_path, _name)
 	end
 
 	local name = projectNameCleanup(_name)
-	local fullPath = path.join(_path, name)
+	local fullPath = path.getabsolute(path.join(_path, name))
 
 	-- called once per project, no need to cache results
 	if os.isfile(fullPath  .. "_pch.h") then
@@ -746,9 +746,8 @@ function projectGetPath(_name, _canFail)
 		return g_projectPathCache[name]
 	end
 
-	local searchDir = pathGetAbsoluteCached(_WORKING_DIR)
-
-	local result = nil
+	local searchDir	= pathGetAbsoluteCached(_WORKING_DIR)
+	local result	= nil
 
 	-- deep search only at working directory level
 	local found = findDirByNameRecursive(searchDir, name, 3)
@@ -924,8 +923,6 @@ function projectAdd(_name)
 		else
 			printWarning("Project " .. textColor(name, Color.Cyan) .. " being added, but no add function found. Forgotten to load the project script?")
 		end
-
-		printProjectAdded(name, projectPath)
 	end
 end
 
@@ -1098,12 +1095,12 @@ function addDependencies(_name, _additionalDeps)
 					if _G["projectAdd_" .. depName] ~= nil then
 						_G["projectAdd_" .. depName]()
 						g_projectIsAdded[depName] = true
-						printProjectAdded(depName, projectGetPath(dependency))
 					end
 				end
 			end
 		end
 	end
+	printProjectAdded(_name, projectGetPath(_name))
 end
 
 --

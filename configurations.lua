@@ -28,6 +28,7 @@ local function setSubConfig(_platform, _configuration, _is64bit, _index)
 	if _configuration == "debug" then
 		prefix = "d"
 	end
+
 	if WITH_QT then
         configuration { _configuration }
 		-- _index == 0 checks we add files only once, not for every configuration, since they are the same for all configs
