@@ -95,10 +95,13 @@ function printWarning(_message)
 end
 
 -- Prints a red error message and terminates the build
-function printErrorAndExit(_message)
+function printError(_message, _exit)
+	if _exit == nil then _exit = false end
 	print(textColor("ERROR:", Color.Red, nil, true) .. " " .. textColor(_message, Color.Yellow))
 	disableUTF8()
-	os.exit(1)
+	if _exit then
+		os.exit(1)
+	end
 end
 
 --------------------------------------------------------
@@ -241,7 +244,7 @@ if os.getenv("RG_ZIDAR_DEPENDENCY_DIR") then
 	if (os.isdir(envdir)) then
 		RG_DEPENDENCY_DIR = envdir
 	else
-		printErrorAndExit("Environment variable " .. 
+		printError("Environment variable " .. 
 					textColor("RG_ZIDAR_DEPENDENCY_DIR", Color.Red) .. textColor(" is set to ", Color.Yellow) .. 
 					textColor(envdir, Color.Red) .. textColor(", but it is not a valid directory.", Color.Yellow))
 
@@ -406,7 +409,7 @@ local _pathEnv = os.getenv("PATH") or ""
 function checkPrerequisite(_toolName)
 	local exeName = isRunningOnWindows() and (_toolName .. ".exe") or _toolName
 	if not os.pathsearch(exeName, _pathEnv) then
-		printErrorAndExit(textColor(_toolName, Color.Cyan) .. " is required to build the project. Please install " .. textColor(_toolName, Color.Cyan) .. " and make sure it's in your PATH.")
+		printError(textColor(_toolName, Color.Cyan) .. " is required to build the project. Please install " .. textColor(_toolName, Color.Cyan) .. " and make sure it's in your PATH.")
 	end
 end
 
@@ -708,12 +711,12 @@ function projectInstall3rdPartyLib(_name)
 		print("Downloading " .. textColor(name, Color.Cyan) .. " from: " .. textColor(downloadLink, Color.Yellow))
 		if not pathIsDirCached(destination) then
 			if not os.execute("git clone " .. downloadLink .. " " .. destination) then
-				printErrorAndExit("Failed to download missing dependency: " .. textColor(name, Color.Red))
+				printError("Failed to download missing dependency: " .. textColor(name, Color.Red))
 			end
 			return pathIsDirCached(destination, true)
 		end
 	else
-		printErrorAndExit("No link to download source code of missing dependency found: " .. name)
+		printError("No link to download source code of missing dependency found: " .. name)
 	end	
 	return false
 end
@@ -731,7 +734,7 @@ function projectAddPathToCache(_name, _path)
 	local name = projectGetBaseName(_name)
 	if g_projectPathCache[name] then
 		if g_projectPathCache[name] ~= _path then
-			printErrorAndExit("Project path cache conflict for project " .. name .. " - already have path: " .. g_projectPathCache[name] .. ", new path: " .. _path)
+			printError("Project path cache conflict for project " .. name .. " - already have path: " .. g_projectPathCache[name] .. ", new path: " .. _path)
 		end
 		return
 	end
@@ -790,7 +793,8 @@ function projectGetPath(_name, _canFail)
 	end
 
 	if not result and not _canFail then -- rg_core compat path search
-		printErrorAndExit("Could not find path for project " .. textColor(name, Color.Cyan))
+		printWarning("Project " .. textColor(name, Color.Cyan) .. " not found but path requested.")
+		g_projectPathCache[name] = "" -- prevent future searches for this project
 	end
 
 	return result
@@ -832,21 +836,20 @@ function projectGetScriptPath(_name, _requester)
 	-- search upward through parent directories looking for
 	-- a directory with matching name
 	local searchDir = pathGetAbsoluteCached(_WORKING_DIR)
-	while true do
-		if pathIsRootPath(searchDir) then break end
+	while not pathIsRootPath(searchDir) do
 		local upDir = pathGetAbsoluteCached(path.join(searchDir, ".."))
+		if upDir == searchDir then break end
 
 		local upResult = findScriptInDirCached(upDir, 0, depthToSearch, scriptName)
 		if upResult then
 			result = upResult
+			break
 		end
-		if result then break end
 		searchDir = upDir
 	end
 
 	if not result then
-		print(debug.traceback())
-		printErrorAndExit("Could not find or download dependency - " .. name)
+		printError("Could not find or download dependency - " .. textColor(name, Color.Cyan))
 	end
 
 	if result then
@@ -900,17 +903,17 @@ end
 -- Recursively adds a project and its dependencies to the solution
 function projectAdd(_name)
 	local name = projectNameCleanup(_name)
-
 	if g_projectIsAdded[name] == nil then
-
 		local projectPath = projectGetPath(name)
 		if not projectPath then
 			local oslib = os.findlib(_name)
 			if not oslib then
-				printErrorAndExit("Could not find project or OS library for dependency - " .. _name)
+				printError("Could not find project or OS library for dependency - " .. _name)
+				return
 			end
 			printWarning("Project " .. textColor(name, Color.Cyan) .. " not found, but found OS library: " .. textColor(oslib, Color.Yellow) .. ". Linking against it instead.")
 			links { oslib }
+			return
 		end
 		local dependencies = projectGetDependencies(name)
 		for _,dependency in ipairs(dependencies) do
@@ -945,6 +948,8 @@ function projectLoad(_projectName, _loadAndAdd)
 	      projectPath	= projectGetPaths(_projectName) -- this will load the project script and cache the path, if not already cached
 	local name			= projectGetBaseName(_projectName)
 
+	g_projectScriptIsLoaded[name] = true
+
 	if scriptPath ~= nil then
 		if pathIsFileCached(scriptPath) then
 			if g_fileIsLoaded[scriptPath] == nil then
@@ -952,7 +957,7 @@ function projectLoad(_projectName, _loadAndAdd)
 
 				if not pathIsDirCached(projectPath) then
 					if not projectInstall3rdPartyLib(_projectName) then
-						printErrorAndExit("Could not find or download dependency - " .. _projectName)
+						printError("Could not find or download dependency - " .. _projectName)
 					end					
 				end
 				
@@ -966,20 +971,17 @@ function projectLoad(_projectName, _loadAndAdd)
 				end
 
 				g_fileIsLoaded[scriptPath] = true
-				g_projectScriptIsLoaded[name] = true
-			else
-				g_projectScriptIsLoaded[name] = true
 			end
 		end
 	else
-		printErrorAndExit("Could not find script for project - " .. _projectName)
+		printWarning("Could not find script for project - " .. _projectName)
 	end
 end
 
 local function projectLoadIfNeeded(_projectName, _loadAndAdd)
 	local name = projectGetBaseName(_projectName)
 	if g_projectScriptIsLoaded[name] then
-		return
+		return  
 	end
 	projectLoad(_projectName, _loadAndAdd)
 end
@@ -1186,7 +1188,7 @@ function getToolForHost(_name)
 	local projectDir = projectGetPath("zidar")
 
 	if not projectDir then
-		printErrorAndExit("zidar project directory not found, cannot determine tool paths")
+		printError("zidar project directory not found, cannot determine tool paths")
 	end
 
 	local toolPath = path.getabsolute(projectDir .. "/tools/bin/")
