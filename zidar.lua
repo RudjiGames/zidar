@@ -875,7 +875,10 @@ end
 function addIncludePath(_name, _path)
 	assert(_path ~= nil)
 	if string.len(_path) == 0 then return end
-	if pathIsDirCached(_path) then includedirs { _path } end
+
+	if pathIsDirCached(_path) then 
+		includedirs { _path } 
+	end
 end
 
 -- Adds standard include paths (parent, include/, inc/) for a dependency
@@ -890,9 +893,9 @@ function addIncludePaths(_name, _projectName)
 
 	-- search for it..
 	addIncludePath(_name, projectParentDir)
-	addIncludePath(_name, projectParentDir .. "/" .. basename .. "/include")
-	addIncludePath(_name, projectParentDir .. "/" .. basename .. "/inc")
-	addIncludePath(_name, projectParentDir .. "/" .. basename)
+	addIncludePath(_name, projectDir .. "/include")
+	addIncludePath(_name, projectDir .. "/inc")
+	addIncludePath(_name, projectDir .. "/src") -- some projects put headers in src
 end
 
 -- Recursively adds a project and its dependencies to the solution

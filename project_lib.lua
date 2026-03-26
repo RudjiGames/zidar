@@ -48,7 +48,7 @@ function addProject_lib(_name, _libType, _shared, _disablePCH)
 		includedirs	{
 			libsPath, 
 			incFilesPath,
-			srcFilesPath			
+			srcFilesPath
 		}
 
 		-- no need to cache, done once per project
