@@ -174,7 +174,6 @@ elseif arg[1] == "-uic" then
 	local outputFileName = QtOutDirectory.uic .. nativeSlash .. getFileNameNoExtNoPathFromPath( arg[2] ) .. "_ui.h"
 	if file_is_upToDate(outputFileName) then return end
 	local fullUICPath = QtToolExe.uic.." \""..arg[2].."\" -o \""..outputFileName.."\""
-	print(fullUICPath)
 	if windows then
 		fullUICPath = '""'..QtToolExe.uic..'" "'..arg[2]..'" -o "'..outputFileName..'""'
 	end

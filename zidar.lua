@@ -217,6 +217,10 @@ if os.isfile(RG_ROOT_DIR .. "/genie.lua") then
 end
 RG_ZIDAR_BUILD_DIR	= RG_ROOT_DIR .. "/.zidar"										-- temp build files
 
+-- strip trailing slash if present before adding for consistent path handling
+while string.sub(RG_ZIDAR_DIR, -1) == "/" or string.sub(RG_ZIDAR_DIR, -1) == "\\" do
+	RG_ZIDAR_DIR = string.sub(RG_ZIDAR_DIR, 1, -2)
+end
 print(textColor("\xE2\x96\xB6", Color.Green) .. textColor(" zidar path :", Color.Cyan) .. "            " .. textColor(RG_ZIDAR_DIR, Color.Green))
 
 --------------------------------------------------------
@@ -250,6 +254,15 @@ if os.getenv("RG_ZIDAR_DEPENDENCY_DIR") then
 
 	end	
 end 
+
+local QT_PATH = os.getenv("QTDIR")
+if QT_PATH ~= nil then
+	-- strip trailing slash if present before adding for consistent path handling
+	while string.sub(QT_PATH, -1) == "/" or string.sub(QT_PATH, -1) == "\\" do
+		QT_PATH = string.sub(QT_PATH, 1, -2)
+	end
+	print(textColor("\xE2\x96\xB6", Color.Green) .. textColor(" QTDIR :", Color.Cyan) .. "                 " .. textColor(QT_PATH, Color.Green))
+end
 
 printInfo(textColor("\xE2\x96\xB6", Color.Green) .. " " .. textColor("Checking environment... ", Color.Cyan) .. textColor("OK!", Color.Green))
 
@@ -594,7 +607,7 @@ local function getChildDirsCached(_dir)
 end
 
 local _dirByNameSearchCache = {}
-local function findDirByNameRecursive(_dir, _name, _depth, _maxDepth)
+local function findDirByNameRecursive(_dir, _name, _depth, _maxDepth, _validator)
 	local absDir = pathGetAbsoluteCached(_dir)
 	local cacheKey = absDir .. "|" .. _name
 	local cached = _dirByNameSearchCache[cacheKey]
@@ -609,14 +622,16 @@ local function findDirByNameRecursive(_dir, _name, _depth, _maxDepth)
 
 	local childDirsByName, childDirs = getChildDirsCached(absDir)
 	if childDirsByName[_name] ~= nil then
-		local result = childDirsByName[_name]
-		_dirByNameSearchCache[cacheKey] = result
-		return result
+		local candidate = childDirsByName[_name]
+		if not _validator or _validator(candidate) then
+			_dirByNameSearchCache[cacheKey] = candidate
+			return candidate
+		end
 	end
 
 	if _depth < _maxDepth then
 		for _, subDir in ipairs(childDirs) do
-			local found = findDirByNameRecursive(subDir, _name, _depth + 1, _maxDepth)
+			local found = findDirByNameRecursive(subDir, _name, _depth + 1, _maxDepth, _validator)
 			if found then
 				_dirByNameSearchCache[cacheKey] = found
 				return found
@@ -626,29 +641,6 @@ local function findDirByNameRecursive(_dir, _name, _depth, _maxDepth)
 
 	_dirByNameSearchCache[cacheKey] = false
 	return nil
-end
-
-local function pathGetFirstNamedOccurrence(_path, _name)
-	local current = pathGetAbsoluteCached(_path)
-	local firstMatch = nil
-
-	while current and current ~= "" do
-		if path.getbasename(current) == _name then
-			firstMatch = current
-		end
-
-		if pathIsRootPath(current) then
-			break
-		end
-
-		local parent = pathGetAbsoluteCached(path.join(current, ".."))
-		if parent == current then
-			break
-		end
-		current = parent
-	end
-
-	return firstMatch or _path
 end
 
 local function findScriptInProjectDir(_projectDir, _scriptName)
@@ -771,35 +763,36 @@ function projectGetPath(_name, _canFail)
 		return g_projectPathCache[name]
 	end
 
+	local function isValidProjectDir(dir)
+		return pathIsFileCached(path.join(dir, "scripts/genie.lua"))
+			or pathIsFileCached(path.join(dir, "genie/genie.lua"))
+	end
+
 	local searchDir	= pathGetAbsoluteCached(_WORKING_DIR)
 	local result	= nil
 
-	-- deep search only at working directory level
-	local found = findDirByNameRecursive(searchDir, name, 0, 3)
-	if found then
-		result = found
-	end
-
 	-- deep search walking up parent directories
-	if not result then
-		while not pathIsRootPath(searchDir) do
-			if path.getbasename(searchDir) == name then
-				result = searchDir
-				break
-			end
-
-			local upFound = findDirByNameRecursive(searchDir, name, 0, 3)
-			if upFound then
-				result = upFound
-				break
-			end
-
-			local parent = pathGetAbsoluteCached(path.join(searchDir, ".."))
-			if parent == searchDir or (RG_ZIDAR_HOME_DIR and searchDir == pathGetAbsoluteCached(RG_ZIDAR_HOME_DIR)) then
-				break
-			end
-			searchDir = parent
+	while not result do
+		if path.getbasename(searchDir) == name and isValidProjectDir(searchDir) then
+			result = searchDir
+			break
 		end
+
+		local found = findDirByNameRecursive(searchDir, name, 0, 3, isValidProjectDir)
+		if found then
+			result = found
+			break
+		end
+
+		if pathIsRootPath(searchDir) then
+			break
+		end
+
+		local parent = pathGetAbsoluteCached(path.join(searchDir, ".."))
+		if parent == searchDir or (RG_ZIDAR_HOME_DIR and searchDir == pathGetAbsoluteCached(RG_ZIDAR_HOME_DIR)) then
+			break
+		end
+		searchDir = parent
 	end
 
 	-- check 3rd party libraries
@@ -808,15 +801,11 @@ function projectGetPath(_name, _canFail)
 	end
 
 	if result then
-		result = pathGetFirstNamedOccurrence(result, name)
-		if pathIsDirCached(result) then
-			projectAddPathToCache(_name, result)
-		end
+		projectAddPathToCache(_name, result)
 	end
 
-	if not result and not _canFail then -- rg_core compat path search
+	if not result and not _canFail then
 		printWarning("Project " .. textColor(name, Color.Cyan) .. " not found but path requested.")
-		--g_projectPathCache[name] = "" -- prevent future searches for this project
 	end
 
 	return result
@@ -961,8 +950,6 @@ end
 
 --
 function printProjectAdded(_name, _path)
-	if string.len(_path) < 1 then print(debug.traceback()) end
-
 	print("\xE2\x80\xA2 " .. textColor(textFixedWidth(_name), Color.Cyan) .. " \xE2\x86\x92 " .. textColor(_path, Color.Blue))
 end
 
@@ -984,7 +971,7 @@ function projectLoad(_projectName, _loadAndAdd)
 						printError("Could not find or download dependency - " .. _projectName)
 					end					
 				end
-				
+
 				if _G["projectAdd_" .. name] == nil then -- prebuilt libs have no projects
 					printWarning("Project " .. textColor(name, Color.Cyan) .. " loaded, but no add function found. This may be a prebuilt library, if so this message can be ignored.")
 				end
@@ -1104,6 +1091,7 @@ end
 function addDependencies(_name, _additionalDeps)
 	local dependencies = projectGetDependencies(_name, _additionalDeps)
 	addExtraSettingsForExecutable(_name)
+	printProjectAdded(_name, projectGetPath(_name))
 
 	if dependencies ~= nil then
 		for _,dependency in ipairs(dependencies) do
@@ -1118,15 +1106,11 @@ function addDependencies(_name, _additionalDeps)
 				end
 
 				if g_projectIsAdded[depName] == nil then
-					if _G["projectAdd_" .. depName] ~= nil then
-						_G["projectAdd_" .. depName]()
-						g_projectIsAdded[depName] = true
-					end
+					projectAdd(depName)
 				end
 			end
 		end
 	end
-	printProjectAdded(_name, projectGetPath(_name))
 end
 
 --

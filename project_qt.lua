@@ -6,16 +6,37 @@
 
 local g_qtProjectFilesCache = {}
 
+local g_qtHeaderUsesQObjectCache = {}
+
+local function qtHeaderUsesQObject(_file)
+	local cached = g_qtHeaderUsesQObjectCache[_file]
+	if cached ~= nil then
+		return cached
+	end
+
+	local headerSrc = fileRead(_file)
+	cached = headerSrc:find("Q_OBJECT", 1, true) ~= nil
+	g_qtHeaderUsesQObjectCache[_file] = cached
+	return cached
+end
+
 local function getQtProjectFiles(_projectPath)
 	local cached = g_qtProjectFilesCache[_projectPath]
 	if cached ~= nil then
 		return cached.mocFiles, cached.uiFiles, cached.qrcFiles, cached.tsFiles
 	end
 
-	local mocFiles = mergeTables(os.matchfiles(_projectPath .. "/inc/**.h"), os.matchfiles(_projectPath .. "/src/**.h"))
+	local headers  = mergeTables(os.matchfiles(_projectPath .. "/inc/**.h"), os.matchfiles(_projectPath .. "/src/**.h"))
 	local uiFiles  = os.matchfiles(_projectPath .. "/src/**.ui")
 	local qrcFiles = os.matchfiles(_projectPath .. "/src/**.qrc")
 	local tsFiles  = os.matchfiles(_projectPath .. "/src/**.ts")
+
+	local mocFiles = {}
+	for _, header in ipairs(headers) do
+		if qtHeaderUsesQObject(header) then
+			table.insert(mocFiles, header)
+		end
+	end
 
 	g_qtProjectFilesCache[_projectPath] = {
 		mocFiles = mocFiles,
@@ -83,7 +104,7 @@ function addProject_qt(_name, _libraryType, _includes, _prebuildcmds, _extraQtMo
 		for _,cmd in ipairs( _prebuildcmds ) do
 			prebuildcommands { cmd }
 		end
-		
+
 		 -- true = isQtProject, adds extra defines and flags for qt projects
 		projectConfig(true, mocFiles, uiFiles, qrcFiles, tsFiles, libsToLink)
 		addDependencies(project().name)

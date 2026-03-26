@@ -7,20 +7,6 @@
 qt = {}
 qt.version = "6" -- default Qt version
 
-local g_qtHeaderUsesQObjectCache = {}
-
-local function qtHeaderUsesQObject(_file)
-	local cached = g_qtHeaderUsesQObjectCache[_file]
-	if cached ~= nil then
-		return cached
-	end
-
-	local headerSrc = fileRead(_file)
-	cached = headerSrc:find("Q_OBJECT", 1, true) ~= nil
-	g_qtHeaderUsesQObjectCache[_file] = cached
-	return cached
-end
-
 function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles, _tsfiles, _libsToLink, _copyDynamicLibraries, _is64bit, _dbgPrefix, _isFirstConfig )
 	 
 		local RG_QT_LIB_PREFIX		= "Qt" .. qt.version
@@ -58,13 +44,10 @@ function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles,
 		for _,file in ipairs( _mocfiles ) do
 			local absFile = path.getabsolute(file)
 			local mocFilePath = path.getabsolute(QT_MOC_FILES_PATH .. "/" .. path.getbasename(file) .. "_moc.cpp")
-
-			if qtHeaderUsesQObject(file) then
-				prebuildcommands { QT_PREBUILD_LUA_PATH .. ' -moc "' .. absFile .. '" "' .. QT_PATH .. '" "' .. projName .. '" "' .. mocFilePath .. '"' }
-				if _isFirstConfig then
-					files { file, mocFilePath }
-					table.insert(addedFiles, file)
-				end
+			prebuildcommands { QT_PREBUILD_LUA_PATH .. ' -moc "' .. absFile .. '" "' .. QT_PATH .. '" "' .. projName .. '" "' .. mocFilePath .. '"' }
+			if _isFirstConfig then
+				files { file, mocFilePath }
+				table.insert(addedFiles, file)
 			end
 		end
 
