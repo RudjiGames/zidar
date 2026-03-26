@@ -593,16 +593,38 @@ local function getChildDirsCached(_dir)
 	return byName, dirs
 end
 
-local function findDirByNameRecursive(_dir, _name, _maxDepth)
-	if _maxDepth <= 0 then return nil end
-	local childDirsByName, childDirs = getChildDirsCached(_dir)
+local _dirByNameSearchCache = {}
+local function findDirByNameRecursive(_dir, _name, _depth, _maxDepth)
+	local absDir = pathGetAbsoluteCached(_dir)
+	local cacheKey = absDir .. "|" .. _name
+	local cached = _dirByNameSearchCache[cacheKey]
+	if cached ~= nil then
+		return cached ~= false and cached or nil
+	end
+
+	if string.find(absDir, "/zidar/3rd", 1, true) then
+		_dirByNameSearchCache[cacheKey] = false
+		return nil
+	end
+
+	local childDirsByName, childDirs = getChildDirsCached(absDir)
 	if childDirsByName[_name] ~= nil then
-		return childDirsByName[_name]
+		local result = childDirsByName[_name]
+		_dirByNameSearchCache[cacheKey] = result
+		return result
 	end
-	for _, subDir in ipairs(childDirs) do
-		local found = findDirByNameRecursive(subDir, _name, _maxDepth - 1)
-		if found then return found end
+
+	if _depth < _maxDepth then
+		for _, subDir in ipairs(childDirs) do
+			local found = findDirByNameRecursive(subDir, _name, _depth + 1, _maxDepth)
+			if found then
+				_dirByNameSearchCache[cacheKey] = found
+				return found
+			end
+		end
 	end
+
+	_dirByNameSearchCache[cacheKey] = false
 	return nil
 end
 
@@ -753,12 +775,12 @@ function projectGetPath(_name, _canFail)
 	local result	= nil
 
 	-- deep search only at working directory level
-	local found = findDirByNameRecursive(searchDir, name, 3)
+	local found = findDirByNameRecursive(searchDir, name, 0, 3)
 	if found then
 		result = found
 	end
 
-	-- shallow search walking up parent directories
+	-- deep search walking up parent directories
 	if not result then
 		while not pathIsRootPath(searchDir) do
 			if path.getbasename(searchDir) == name then
@@ -766,9 +788,9 @@ function projectGetPath(_name, _canFail)
 				break
 			end
 
-			local childDirsByName = getChildDirsCached(searchDir)
-			if childDirsByName[name] then
-				result = childDirsByName[name]
+			local upFound = findDirByNameRecursive(searchDir, name, 0, 3)
+			if upFound then
+				result = upFound
 				break
 			end
 
@@ -794,7 +816,7 @@ function projectGetPath(_name, _canFail)
 
 	if not result and not _canFail then -- rg_core compat path search
 		printWarning("Project " .. textColor(name, Color.Cyan) .. " not found but path requested.")
-		g_projectPathCache[name] = "" -- prevent future searches for this project
+		--g_projectPathCache[name] = "" -- prevent future searches for this project
 	end
 
 	return result
@@ -939,6 +961,8 @@ end
 
 --
 function printProjectAdded(_name, _path)
+	if string.len(_path) < 1 then print(debug.traceback()) end
+
 	print("\xE2\x80\xA2 " .. textColor(textFixedWidth(_name), Color.Cyan) .. " \xE2\x86\x92 " .. textColor(_path, Color.Blue))
 end
 
