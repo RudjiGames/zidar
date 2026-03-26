@@ -17,16 +17,22 @@ if windows then
 end
 
 --
-local function file_exists(file)
-	if file == nil then return false end
-	local f = io.open(file, "r")
-	if f then f:close() return true end
-	return false
+local function file_isdir(path)
+	local ok, err, code = os.rename(path .. "/", path .. "/")
+	if not ok then
+		if code == 13 then return true end
+		return false
+	end
+	return true
 end
 
 --
-local function file_isdir(path)
-	return file_exists(path.."/")
+local function file_exists(file)
+	if file == nil then return false end
+	if file_isdir(file) then return false end
+	local f = io.open(file, "r")
+	if f then f:close() return true end
+	return false
 end
 
 --
