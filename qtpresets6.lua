@@ -54,7 +54,7 @@ function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles,
 		for _,file in ipairs( _uifiles ) do
 			local absFile = path.getabsolute(file)
 			local uiFilePath = path.getabsolute(QT_UI_FILES_PATH .. "/" .. path.getbasename(file) .. "_ui.h")
-			prebuildcommands { QT_PREBUILD_LUA_PATH .. ' -uic "' .. absFile .. '" "' .. QT_PATH .. '"' .. " " .. projName }
+			prebuildcommands { QT_PREBUILD_LUA_PATH .. ' -uic "' .. absFile .. '" "' .. QT_PATH .. '" "' .. projName .. '" "' .. uiFilePath .. '"' }
 			if _isFirstConfig then
 				files { file, uiFilePath }
 				table.insert(addedFiles, uiFilePath)
@@ -64,7 +64,7 @@ function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles,
 		for _,file in ipairs( _qrcfiles ) do
 			local absFile = path.getabsolute(file)
 			local qrcFilePath = path.getabsolute(QT_QRC_FILES_PATH .. "/" .. path.getbasename(file) .. "_qrc.cpp")
-			prebuildcommands { QT_PREBUILD_LUA_PATH .. ' -rcc "' .. absFile .. '" "' .. QT_PATH .. '"' .. " " .. projName }
+			prebuildcommands { QT_PREBUILD_LUA_PATH .. ' -rcc "' .. absFile .. '" "' .. QT_PATH .. '" "' .. projName .. '" "' .. qrcFilePath .. '"' }
 			if _isFirstConfig then
 				files { file, qrcFilePath }
 				table.insert(addedFiles, qrcFilePath)
@@ -74,7 +74,7 @@ function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles,
 		for _,file in ipairs( _tsfiles ) do
 			local absFile = path.getabsolute(file)
 			local tsFilePath = path.getabsolute(QT_TS_FILES_PATH .. "/" .. path.getbasename(file) .. "_ts.qm")
-			prebuildcommands { QT_PREBUILD_LUA_PATH .. ' -ts "' .. absFile .. '" "' .. QT_PATH .. '"' .. " " .. projName }
+			prebuildcommands { QT_PREBUILD_LUA_PATH .. ' -ts "' .. absFile .. '" "' .. QT_PATH .. '" "' .. projName .. '" "' .. tsFilePath .. '"' }
 			if _isFirstConfig then
 				files { file, tsFilePath }
 				table.insert(addedFiles, tsFilePath)
