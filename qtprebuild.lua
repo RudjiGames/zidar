@@ -82,9 +82,12 @@ if not file_exists(arg[2]) then
 end
 
 local function getExe(_name)
-	local exeName = _name
-	 if windows then exeName = qtDirectory .. nativeSlash .. "bin" .. nativeSlash .. exeName end
-	return exeName
+	local ext = windows and ".exe" or ""
+	local binPath = qtDirectory .. nativeSlash .. "bin" .. nativeSlash .. _name
+	local libexecPath = qtDirectory .. nativeSlash .. "libexec" .. nativeSlash .. _name
+	if file_exists(libexecPath .. ext) then return libexecPath end
+	if file_exists(binPath .. ext) then return binPath end
+	return binPath
 end
 
 local QtToolExe = {}
