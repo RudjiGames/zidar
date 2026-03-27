@@ -91,7 +91,7 @@ function addProject_qt(_name, _libraryType, _includes, _prebuildcmds, _extraQtMo
 
 		_includes = _includes or {}
 		includedirs	{ 
-			projectGetScriptPath(project().name),
+			path.getdirectory(projectGetScriptPath(project().name)),
 			projectPath .. "/src",
 			_includes
 		}
