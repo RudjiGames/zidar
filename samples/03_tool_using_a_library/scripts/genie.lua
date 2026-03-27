@@ -12,3 +12,4 @@ dofile("03_tool_using_a_library.lua")
 solution "tool_using_a_library"
 	setPlatforms()
 	projectAdd("03_tool_using_a_library")
+	startproject "03_tool_using_a_library"

@@ -178,9 +178,11 @@ print(	textColor("\xE2\x96\x91\xE2\x96\x92\xE2\x96\x93", Color.Green) .. " " ..
 		textColor("zidar", Color.Green) ..
 		textColor(" v" .. Version.High .. "." .. Version.Low, Color.Green) .. " " ..
 		textColor("\xE2\x96\x93\xE2\x96\x92\xE2\x96\x91", Color.Green) )
+
 atexit(function()
     disableUTF8()
 end)
+
 --------------------------------------------------------
 -- directories and defines
 --------------------------------------------------------
