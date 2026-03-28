@@ -262,14 +262,14 @@ end
 
 **Function:** `addProject_lib_sample(_name, _sampleName)`
 
-Automatically created by `addLibSubProjects_samples()` when `--with-samples` is set. Each subdirectory under `samples/` becomes a separate `ConsoleApp` project.
+Automatically created by `addLibSubProjects_samples()` when `--with-samples` is set. Each subdirectory under `samples/` becomes a separate `ConsoleApp` project. The project name is prefixed with the parent library name: `<lib>_<sampledir>` (e.g. `my_lib_sample_basic`).
 
 ```
 my_lib/
   samples/
-    sample_basic/
+    sample_basic/       -- becomes project "my_lib_sample_basic"
       src/main.cpp
-    sample_advanced/
+    sample_advanced/    -- becomes project "my_lib_sample_advanced"
       src/main.cpp
 ```
 
@@ -277,7 +277,7 @@ my_lib/
 
 **Function:** `addProject_lib_test(_name)`
 
-Automatically created by `addLibSubProjects_unittests()` when `--with-unittests` is set. The test project is named `[name]_test`.
+Automatically created by `addLibSubProjects_unittests()` when `--with-unittests` is set. The test project is named `<lib>_test` (e.g. `my_lib_test`).
 
 - C++ tests depend on `unittest-cpp`
 - C tests depend on `unity` (the C testing framework)
@@ -292,7 +292,7 @@ my_lib/
 
 **Function:** `addProject_lib_tool(_name, _libName)`
 
-Automatically created by `addLibSubProjects_tools()` when `--with-tools` is set. Each subdirectory under `tools/` becomes a separate `ConsoleApp` project.
+Automatically created by `addLibSubProjects_tools()` when `--with-tools` is set. Each subdirectory under `tools/` becomes a separate `ConsoleApp` project. The project name is prefixed with the parent library name: `<lib>_<tooldir>` (e.g. `my_lib_asset_converter`).
 
 ## Dependency Resolution
 
