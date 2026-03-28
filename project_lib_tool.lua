@@ -26,8 +26,6 @@ function addProject_lib_tool(_name, _libName)
 			language	"C"
 		end			
 
-		local withBGFX = projectRequiresBGFX( projectPath )
-
 		includedirs
 		{ 
 			projectPath .. "/src",
@@ -38,7 +36,7 @@ function addProject_lib_tool(_name, _libName)
 
 		local dependencies = { _name }
 
-		if withBGFX then
+		if projectRequiresBGFX( projectPath ) then
 			dependencies[#dependencies + 1] = "bgfx"
 		end
 

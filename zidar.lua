@@ -701,6 +701,7 @@ end
 
 -- Returns true if a specially named header exists in the given path, indicating that the project requires bgfx
 function projectRequiresBGFX(_sourcePath)
+	print(_sourcePath .. "/" .. projectNameCleanup(project().name) .. "_uses_bgfx.h")
 	if pathIsFileCached(_sourcePath .. "/" .. projectNameCleanup(project().name) .. "_uses_bgfx.h") then
 		return true
 	end

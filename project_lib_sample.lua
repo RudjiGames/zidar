@@ -17,8 +17,7 @@ function addProject_lib_sample(_name, _sampleName)
 
 		local libsPath = path.getdirectory(projectGetPath(_name))
 
-		local projectPath = libsPath .. "/" .. _name
-print(projectPath,libsPath)
+		local projectPath	= libsPath .. "/" .. _name
 		local srcFilesPath	= projectPath .. "/samples/" .. _sampleName
 		local incFilesPath	= srcFilesPath .. "/**.h"
 		local sourceFiles	= projectSourceFilesWildcard(srcFilesPath)
@@ -30,7 +29,6 @@ print(projectPath,libsPath)
 			language	"C"
 		end					
 
-		local withBGFX	= projectRequiresBGFX( srcFilesPath )
 		includedirs
 		{ 
 			projectPath .. "/samples",
@@ -42,7 +40,7 @@ print(projectPath,libsPath)
 
 		local dependencies = { _name }
 
-		if withBGFX then
+		if projectRequiresBGFX( srcFilesPath ) then
 			dependencies[#dependencies + 1] = "bgfx"
 		end
 
