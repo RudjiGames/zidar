@@ -15,7 +15,7 @@ function addProject_lib_tool(_name, _libName)
 		uuid	( os.uuid(project().name) )
 		flags	{ Flags_Libraries }
 
-		local projectPath = projectGetPath(_name)
+		local projectPath = projectGetPath(project().name)
 		local sourceFiles = projectSourceFilesWildcard(projectPath)
 
 		files	{ sourceFiles }
@@ -28,7 +28,11 @@ function addProject_lib_tool(_name, _libName)
 
 		local withBGFX = projectRequiresBGFX( projectPath )
 
-		includedirs { projectPath .. "/src" }
+		includedirs
+		{ 
+			projectPath .. "/src",
+			projectPath .. "/tools" .. "/" .. _name,
+		}
 
 		addPCH( projectPath, project().name )
 

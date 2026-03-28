@@ -18,7 +18,7 @@ function addProject_lib_sample(_name, _sampleName)
 		local libsPath = path.getdirectory(projectGetPath(_name))
 
 		local projectPath = libsPath .. "/" .. _name
-
+print(projectPath,libsPath)
 		local srcFilesPath	= projectPath .. "/samples/" .. _sampleName
 		local incFilesPath	= srcFilesPath .. "/**.h"
 		local sourceFiles	= projectSourceFilesWildcard(srcFilesPath)
@@ -34,6 +34,7 @@ function addProject_lib_sample(_name, _sampleName)
 		includedirs
 		{ 
 			projectPath .. "/samples",
+			projectPath .. "/samples" .. "/" .. _sampleName,
 			incFilesPath,
 		}
 		
