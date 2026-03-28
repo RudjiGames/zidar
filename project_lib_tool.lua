@@ -7,7 +7,7 @@
 function addProject_lib_tool(_name, _libName)
 
 	group	( "libs-tools" )
-	project ( _name )
+	project ( _name .. "_" .. _libName )
 
 		project().kind = "ConsoleApp"
 

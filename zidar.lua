@@ -74,6 +74,7 @@ end
 -- Returns a colored string with optional blink and background color
 local _ansiDefault = textColorANSI(Color.Default)
 function textColor(_string, _color, _background, _blink)
+	if not _string then print(debug.traceback()) end
 	local retText = textColorANSI(_color, _background) .. _string .. _ansiDefault
 	if _blink then return textBlink(retText) end
 	return retText
@@ -1128,7 +1129,7 @@ function addLibSubProjects_samples(_name)
 	local sampleDirs = os.matchdirs(samplesDir .. "*") 
 	for _,dir in ipairs(sampleDirs) do
 		local dirName = path.getbasename(dir)
-		printProjectAdded(_name .. "_" .. dirName, dir)
+		projectAddPathToCache(_name .. "_" .. dirName, dir)
 		addProject_lib_sample(_name, dirName)
 	end
 end
@@ -1145,7 +1146,7 @@ function addLibSubProjects_unittests(_name)
 
 	local testDir = projectDir .. "/tests/"
 	if pathIsDirCached(testDir) then
-		printProjectAdded(_name .. "_test", testDir)
+		projectAddPathToCache(_name .. "_test", testDir)
 		addProject_lib_test(_name)
 	end
 end
@@ -1163,7 +1164,7 @@ function addLibSubProjects_tools(_name)
 	local toolsDirs = os.matchdirs(projectDir .. "/tools/*") 
 	for _,dir in ipairs(toolsDirs) do
 		local dirName = path.getbasename(dir)
-		printProjectAdded(_name .. "_" .. dirName, dir)
+		projectAddPathToCache(_name .. "_" .. dirName, dir)
 		addProject_lib_tool(_name, dirName)
 	end
 end

@@ -7,7 +7,7 @@
 function addProject_lib_sample(_name, _sampleName)
 
 	group	( "samples" )
-	project ( _sampleName )
+	project ( _name .. "_" .. _sampleName )
 
 		project().kind = "ConsoleApp"
 
