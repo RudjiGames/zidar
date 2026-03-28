@@ -14,8 +14,8 @@ local RAWPDB_FILES = {
 	RAWPDB_ROOT .. "/src/Examples/ExampleMemoryMappedFile.cpp",
 	RAWPDB_ROOT .. "/src/Examples/ExampleMemoryMappedFile.h",
 	RAWPDB_ROOT .. "/src/Examples/ExampleMain.cpp",
-	RAWPDB_ROOT .. "/src/Foundstion/PDB**.cpp",
-	RAWPDB_ROOT .. "/src/Foundstion/PDB**.h",
+	RAWPDB_ROOT .. "/src/Foundation/PDB**.cpp",
+	RAWPDB_ROOT .. "/src/Foundation/PDB**.h",
 	RAWPDB_ROOT .. "/src/PDB**.h",
 	RAWPDB_ROOT .. "/src/PDB**.cpp"
 }

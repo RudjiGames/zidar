@@ -11,7 +11,7 @@ local params		= { ... }
 local ENKITS_ROOT	= params[1]
 
 local ENKITS_FILES = {
-	ENKITS_ROOT .. "/**h",
+	ENKITS_ROOT .. "/**.h",
 	ENKITS_ROOT .. "/src/**.*"
 }
 

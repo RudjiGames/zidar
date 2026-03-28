@@ -26,7 +26,6 @@ local BIMG_FILES = {
 	BIMG_ROOT .. "/src/**.h",
 	BIMG_ROOT .. "/src/**.cpp",
 	BIMG_ROOT .. "/3rdparty/tinyexr/deps/miniz/**.c",
-	ASTC_CODEC_DIR,
 	ASTC_CODEC_DIR .. "source/**.cpp"
 } 
 

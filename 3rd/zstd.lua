@@ -13,6 +13,7 @@ local ZSTD_ROOT		= params[1]
 local ZSTD_FILES = {
 	ZSTD_ROOT .. "/lib/common/**.c",
 	ZSTD_ROOT .. "/lib/compress/**.h",
+	ZSTD_ROOT .. "/lib/compress/**.c",
 	ZSTD_ROOT .. "/lib/decompress/**.c",
 	ZSTD_ROOT .. "/lib/decompress/**.h",
 	ZSTD_ROOT .. "/lib/dictBuilder/**.c",
