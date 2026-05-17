@@ -1,0 +1,18 @@
+*.c      eol=lf
+*.h      eol=lf
+*.hlsl   eol=lf
+*.md     eol=lf
+*.lua    eol=lf
+*.mk     eol=lf
+makefile eol=lf
+
+3rd/  linguist-vendored=true
+
+*.    linguist-detectable=false
+*.md  linguist-detectable=false
+*.jpg linguist-detectable=false
+
+*.lua linguist-language=Lua
+*.h   linguist-language=C
+*.c   linguist-language=C
+*.cpp linguist-language=C++
