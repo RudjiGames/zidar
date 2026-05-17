@@ -11,7 +11,7 @@ local params	= { ... }
 local ENET_ROOT	= params[1]
 
 local ENET_FILES = {
-	ENET_ROOT .. "/**h",
+	ENET_ROOT .. "/**.h",
 	ENET_ROOT .. "/**.c"
 }
 

@@ -236,9 +236,9 @@ solution "my_math_lib"
 ```
 
 Note the use of `addLibProjects()` instead of `projectAdd()`. This function is designed for libraries and automatically handles sub-projects:
-- If `--with-unittests` is passed: discovers and adds test projects from `tests/`
-- If `--with-samples` is passed: discovers and adds sample projects from `samples/`
-- If `--with-tools` is passed: discovers and adds tool projects from `tools/`
+- If `--with-unittests` is passed: discovers and adds test projects from `tests/`, named `<lib>_test`
+- If `--with-samples` is passed: discovers and adds sample projects from `samples/`, named `<lib>_<sampledir>`
+- If `--with-tools` is passed: discovers and adds tool projects from `tools/`, named `<lib>_<tooldir>`
 
 ### Step 4: Add Unit Tests (Optional)
 
@@ -356,7 +356,7 @@ You only need to call `projectAdd()` for the calculator — zidar automatically 
 When zidar processes `projectAdd("my_calculator")`:
 
 1. Calls `projectDependencies_my_calculator()` → gets `{ "my_math_lib" }`
-2. Searches for `my_math_lib`'s directory (checks cache, then deep search up to 3 levels, then parent directories, then 3rd party registry)
+2. Searches for `my_math_lib`'s directory (checks cache, then walks up parent directories searching up to 3 subdirectory levels deep at each step, then 3rd party registry)
 3. Loads `my_math_lib.lua` if not already loaded
 4. Calls `projectDependencies_my_math_lib()` to get its dependencies (recursing further if needed)
 5. Flattens all transitive dependencies into a single deduplicated list
@@ -650,7 +650,7 @@ end
 
 ## Tutorial 6: Using 3rd Party Libraries
 
-Zidar ships with 60+ pre-configured build scripts for popular C/C++ libraries. When you declare a dependency on one of these, zidar automatically downloads the source code via git and builds it as part of your project.
+Zidar ships with 63 pre-configured build scripts for popular C/C++ libraries. When you declare a dependency on one of these, zidar automatically downloads the source code via git and builds it as part of your project.
 
 ### Using a Built-In 3rd Party Library
 
@@ -677,7 +677,7 @@ No manual downloading, no submodules, no CMake — just declare the dependency.
 
 ### Available 3rd Party Libraries
 
-Some commonly used libraries from the 62 included scripts:
+Some commonly used libraries from the 63 included scripts:
 
 | Category | Libraries |
 |---|---|
@@ -751,8 +751,8 @@ Every project is defined by registering global Lua functions. Below is a summary
 | `addProject_qt(name)` | WindowedApp | `tools` | Qt 6 GUI applications |
 | `addProject_3rdParty_lib(name, files)` | StaticLib | `3rd` | External library wrappers |
 | `addProject_lib_test(name)` | ConsoleApp | `tests` | Unit test executables |
-| `addProject_lib_sample(name)` | ConsoleApp | `samples` | Sample/demo executables |
-| `addProject_lib_tool(name)` | ConsoleApp | `libs-tools` | Library-related tools |
+| `addProject_lib_sample(name, sampleName)` | ConsoleApp | `samples` | Sample/demo executables named `<lib>_<sample>` |
+| `addProject_lib_tool(name, libName)` | ConsoleApp | `libs-tools` | Library-related tools named `<lib>_<tool>` |
 
 ---
 

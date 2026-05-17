@@ -74,6 +74,7 @@ end
 -- Returns a colored string with optional blink and background color
 local _ansiDefault = textColorANSI(Color.Default)
 function textColor(_string, _color, _background, _blink)
+	if not _string then print(debug.traceback()) end
 	local retText = textColorANSI(_color, _background) .. _string .. _ansiDefault
 	if _blink then return textBlink(retText) end
 	return retText
@@ -95,10 +96,13 @@ function printWarning(_message)
 end
 
 -- Prints a red error message and terminates the build
-function printErrorAndExit(_message)
-	print(textColor("ERROR:", Color.Red, Color.Yellow, true) .. " " .. textColor(_message, Color.Yellow))
+function printError(_message, _exit)
+	if _exit == nil then _exit = false end
+	print(textColor("ERROR:", Color.Red, nil, true) .. " " .. textColor(_message, Color.Yellow))
 	disableUTF8()
-	os.exit(1)
+	if _exit then
+		os.exit(1)
+	end
 end
 
 --------------------------------------------------------
@@ -171,13 +175,15 @@ if premake and premake.action and premake.action.call then
 end
 
 enableUTF8()
-print(	textColor("\xE2\x96\x91\xE2\x96\x92\xE2\x96\x93\xE2\x96\x88", Color.Green) .. " " ..
+print(	textColor("\xE2\x96\x91\xE2\x96\x92\xE2\x96\x93", Color.Green) .. " " ..
 		textColor("zidar", Color.Green) ..
 		textColor(" v" .. Version.High .. "." .. Version.Low, Color.Green) .. " " ..
-		textColor("\xE2\x96\x88\xE2\x96\x93\xE2\x96\x92\xE2\x96\x91", Color.Green) )
+		textColor("\xE2\x96\x93\xE2\x96\x92\xE2\x96\x91", Color.Green) )
+
 atexit(function()
     disableUTF8()
 end)
+
 --------------------------------------------------------
 -- directories and defines
 --------------------------------------------------------
@@ -214,6 +220,10 @@ if os.isfile(RG_ROOT_DIR .. "/genie.lua") then
 end
 RG_ZIDAR_BUILD_DIR	= RG_ROOT_DIR .. "/.zidar"										-- temp build files
 
+-- strip trailing slash if present before adding for consistent path handling
+while string.sub(RG_ZIDAR_DIR, -1) == "/" or string.sub(RG_ZIDAR_DIR, -1) == "\\" do
+	RG_ZIDAR_DIR = string.sub(RG_ZIDAR_DIR, 1, -2)
+end
 print(textColor("\xE2\x96\xB6", Color.Green) .. textColor(" zidar path :", Color.Cyan) .. "            " .. textColor(RG_ZIDAR_DIR, Color.Green))
 
 --------------------------------------------------------
@@ -241,12 +251,21 @@ if os.getenv("RG_ZIDAR_DEPENDENCY_DIR") then
 	if (os.isdir(envdir)) then
 		RG_DEPENDENCY_DIR = envdir
 	else
-		printErrorAndExit("Environment variable " .. 
+		printError("Environment variable " .. 
 					textColor("RG_ZIDAR_DEPENDENCY_DIR", Color.Red) .. textColor(" is set to ", Color.Yellow) .. 
 					textColor(envdir, Color.Red) .. textColor(", but it is not a valid directory.", Color.Yellow))
 
 	end	
 end 
+
+local QT_PATH = os.getenv("QTDIR")
+if QT_PATH ~= nil then
+	-- strip trailing slash if present before adding for consistent path handling
+	while string.sub(QT_PATH, -1) == "/" or string.sub(QT_PATH, -1) == "\\" do
+		QT_PATH = string.sub(QT_PATH, 1, -2)
+	end
+	print(textColor("\xE2\x96\xB6", Color.Green) .. textColor(" QTDIR :", Color.Cyan) .. "                 " .. textColor(QT_PATH, Color.Green))
+end
 
 printInfo(textColor("\xE2\x96\xB6", Color.Green) .. " " .. textColor("Checking environment... ", Color.Cyan) .. textColor("OK!", Color.Green))
 
@@ -310,7 +329,7 @@ function addPCH(_path, _name)
 	end
 
 	local name = projectNameCleanup(_name)
-	local fullPath = path.join(_path, name)
+	local fullPath = path.getabsolute(path.join(_path, name))
 
 	-- called once per project, no need to cache results
 	if os.isfile(fullPath  .. "_pch.h") then
@@ -406,13 +425,11 @@ local _pathEnv = os.getenv("PATH") or ""
 function checkPrerequisite(_toolName)
 	local exeName = isRunningOnWindows() and (_toolName .. ".exe") or _toolName
 	if not os.pathsearch(exeName, _pathEnv) then
-		printErrorAndExit(textColor(_toolName, Color.Cyan) .. " is required to build the project. Please install " .. textColor(_toolName, Color.Cyan) .. " and make sure it's in your PATH.")
+		printError(textColor(_toolName, Color.Cyan) .. " is required to build the project. Please install " .. textColor(_toolName, Color.Cyan) .. " and make sure it's in your PATH.")
 	end
 end
 
 checkPrerequisite( "git" )
-checkPrerequisite( "make" )
-checkPrerequisite( "ninja" )
 if isRunningOnWindows() then
 	checkPrerequisite( "sed" )
 end
@@ -592,40 +609,41 @@ local function getChildDirsCached(_dir)
 	return byName, dirs
 end
 
-local function findDirByNameRecursive(_dir, _name, _maxDepth)
-	if _maxDepth <= 0 then return nil end
-	local childDirsByName, childDirs = getChildDirsCached(_dir)
+local _dirByNameSearchCache = {}
+local function findDirByNameRecursive(_dir, _name, _depth, _maxDepth, _validator)
+	local absDir = pathGetAbsoluteCached(_dir)
+	local cacheKey = absDir .. "|" .. _name
+	local cached = _dirByNameSearchCache[cacheKey]
+	if cached ~= nil then
+		return cached ~= false and cached or nil
+	end
+
+	if string.find(absDir, "/zidar/3rd", 1, true) then
+		_dirByNameSearchCache[cacheKey] = false
+		return nil
+	end
+
+	local childDirsByName, childDirs = getChildDirsCached(absDir)
 	if childDirsByName[_name] ~= nil then
-		return childDirsByName[_name]
+		local candidate = childDirsByName[_name]
+		if not _validator or _validator(candidate) then
+			_dirByNameSearchCache[cacheKey] = candidate
+			return candidate
+		end
 	end
-	for _, subDir in ipairs(childDirs) do
-		local found = findDirByNameRecursive(subDir, _name, _maxDepth - 1)
-		if found then return found end
+
+	if _depth < _maxDepth then
+		for _, subDir in ipairs(childDirs) do
+			local found = findDirByNameRecursive(subDir, _name, _depth + 1, _maxDepth, _validator)
+			if found then
+				_dirByNameSearchCache[cacheKey] = found
+				return found
+			end
+		end
 	end
+
+	_dirByNameSearchCache[cacheKey] = false
 	return nil
-end
-
-local function pathGetFirstNamedOccurrence(_path, _name)
-	local current = pathGetAbsoluteCached(_path)
-	local firstMatch = nil
-
-	while current and current ~= "" do
-		if path.getbasename(current) == _name then
-			firstMatch = current
-		end
-
-		if pathIsRootPath(current) then
-			break
-		end
-
-		local parent = pathGetAbsoluteCached(path.join(current, ".."))
-		if parent == current then
-			break
-		end
-		current = parent
-	end
-
-	return firstMatch or _path
 end
 
 local function findScriptInProjectDir(_projectDir, _scriptName)
@@ -683,6 +701,7 @@ end
 
 -- Returns true if a specially named header exists in the given path, indicating that the project requires bgfx
 function projectRequiresBGFX(_sourcePath)
+	print(_sourcePath .. "/" .. projectNameCleanup(project().name) .. "_uses_bgfx.h")
 	if pathIsFileCached(_sourcePath .. "/" .. projectNameCleanup(project().name) .. "_uses_bgfx.h") then
 		return true
 	end
@@ -710,12 +729,12 @@ function projectInstall3rdPartyLib(_name)
 		print("Downloading " .. textColor(name, Color.Cyan) .. " from: " .. textColor(downloadLink, Color.Yellow))
 		if not pathIsDirCached(destination) then
 			if not os.execute("git clone " .. downloadLink .. " " .. destination) then
-				printErrorAndExit("Failed to download missing dependency: " .. textColor(name, Color.Red))
+				printError("Failed to download missing dependency: " .. textColor(name, Color.Red))
 			end
 			return pathIsDirCached(destination, true)
 		end
 	else
-		printErrorAndExit("No link to download source code of missing dependency found: " .. name)
+		printError("No link to download source code of missing dependency found: " .. name)
 	end	
 	return false
 end
@@ -733,7 +752,7 @@ function projectAddPathToCache(_name, _path)
 	local name = projectGetBaseName(_name)
 	if g_projectPathCache[name] then
 		if g_projectPathCache[name] ~= _path then
-			printErrorAndExit("Project path cache conflict for project " .. name .. " - already have path: " .. g_projectPathCache[name] .. ", new path: " .. _path)
+			printError("Project path cache conflict for project " .. name .. " - already have path: " .. g_projectPathCache[name] .. ", new path: " .. _path)
 		end
 		return
 	end
@@ -748,36 +767,36 @@ function projectGetPath(_name, _canFail)
 		return g_projectPathCache[name]
 	end
 
-	local searchDir = pathGetAbsoluteCached(_WORKING_DIR)
-
-	local result = nil
-
-	-- deep search only at working directory level
-	local found = findDirByNameRecursive(searchDir, name, 3)
-	if found then
-		result = found
+	local function isValidProjectDir(dir)
+		return pathIsFileCached(path.join(dir, "scripts/genie.lua"))
+			or pathIsFileCached(path.join(dir, "genie/genie.lua"))
 	end
 
-	-- shallow search walking up parent directories
-	if not result then
-		while not pathIsRootPath(searchDir) do
-			if path.getbasename(searchDir) == name then
-				result = searchDir
-				break
-			end
+	local searchDir	= pathGetAbsoluteCached(_WORKING_DIR)
+	local result	= nil
 
-			local childDirsByName = getChildDirsCached(searchDir)
-			if childDirsByName[name] then
-				result = childDirsByName[name]
-				break
-			end
-
-			local parent = pathGetAbsoluteCached(path.join(searchDir, ".."))
-			if parent == searchDir or (RG_ZIDAR_HOME_DIR and searchDir == pathGetAbsoluteCached(RG_ZIDAR_HOME_DIR)) then
-				break
-			end
-			searchDir = parent
+	-- deep search walking up parent directories
+	while not result do
+		if path.getbasename(searchDir) == name and isValidProjectDir(searchDir) then
+			result = searchDir
+			break
 		end
+
+		local found = findDirByNameRecursive(searchDir, name, 0, 3, isValidProjectDir)
+		if found then
+			result = found
+			break
+		end
+
+		if pathIsRootPath(searchDir) then
+			break
+		end
+
+		local parent = pathGetAbsoluteCached(path.join(searchDir, ".."))
+		if parent == searchDir or (RG_ZIDAR_HOME_DIR and searchDir == pathGetAbsoluteCached(RG_ZIDAR_HOME_DIR)) then
+			break
+		end
+		searchDir = parent
 	end
 
 	-- check 3rd party libraries
@@ -786,14 +805,11 @@ function projectGetPath(_name, _canFail)
 	end
 
 	if result then
-		result = pathGetFirstNamedOccurrence(result, name)
-		if pathIsDirCached(result) then
-			projectAddPathToCache(_name, result)
-		end
+		projectAddPathToCache(_name, result)
 	end
 
-	if not result and not _canFail then -- rg_core compat path search
-		printErrorAndExit("Could not find path for project " .. textColor(name, Color.Cyan))
+	if not result and not _canFail then
+		printWarning("Project " .. textColor(name, Color.Cyan) .. " not found but path requested.")
 	end
 
 	return result
@@ -835,21 +851,20 @@ function projectGetScriptPath(_name, _requester)
 	-- search upward through parent directories looking for
 	-- a directory with matching name
 	local searchDir = pathGetAbsoluteCached(_WORKING_DIR)
-	while true do
-		if pathIsRootPath(searchDir) then break end
+	while not pathIsRootPath(searchDir) do
 		local upDir = pathGetAbsoluteCached(path.join(searchDir, ".."))
+		if upDir == searchDir then break end
 
 		local upResult = findScriptInDirCached(upDir, 0, depthToSearch, scriptName)
 		if upResult then
 			result = upResult
+			break
 		end
-		if result then break end
 		searchDir = upDir
 	end
 
 	if not result then
-		print(debug.traceback())
-		printErrorAndExit("Could not find or download dependency - " .. name)
+		printError("Could not find or download dependency - " .. textColor(name, Color.Cyan))
 	end
 
 	if result then
@@ -877,7 +892,10 @@ end
 function addIncludePath(_name, _path)
 	assert(_path ~= nil)
 	if string.len(_path) == 0 then return end
-	if pathIsDirCached(_path) then includedirs { _path } end
+
+	if pathIsDirCached(_path) then 
+		includedirs { _path } 
+	end
 end
 
 -- Adds standard include paths (parent, include/, inc/) for a dependency
@@ -892,25 +910,25 @@ function addIncludePaths(_name, _projectName)
 
 	-- search for it..
 	addIncludePath(_name, projectParentDir)
-	addIncludePath(_name, projectParentDir .. "/" .. basename .. "/include")
-	addIncludePath(_name, projectParentDir .. "/" .. basename .. "/inc")
-	addIncludePath(_name, projectParentDir .. "/" .. basename)
+	addIncludePath(_name, projectDir .. "/include")
+	addIncludePath(_name, projectDir .. "/inc")
+	addIncludePath(_name, projectDir .. "/src") -- some projects put headers in src
 end
 
 -- Recursively adds a project and its dependencies to the solution
 function projectAdd(_name)
 	local name = projectNameCleanup(_name)
-
 	if g_projectIsAdded[name] == nil then
-
 		local projectPath = projectGetPath(name)
 		if not projectPath then
 			local oslib = os.findlib(_name)
 			if not oslib then
-				printErrorAndExit("Could not find project or OS library for dependency - " .. _name)
+				printError("Could not find project or OS library for dependency - " .. _name)
+				return
 			end
 			printWarning("Project " .. textColor(name, Color.Cyan) .. " not found, but found OS library: " .. textColor(oslib, Color.Yellow) .. ". Linking against it instead.")
 			links { oslib }
+			return
 		end
 		local dependencies = projectGetDependencies(name)
 		for _,dependency in ipairs(dependencies) do
@@ -923,8 +941,6 @@ function projectAdd(_name)
 		else
 			printWarning("Project " .. textColor(name, Color.Cyan) .. " being added, but no add function found. Forgotten to load the project script?")
 		end
-
-		printProjectAdded(name, projectPath)
 	end
 end
 
@@ -947,6 +963,8 @@ function projectLoad(_projectName, _loadAndAdd)
 	      projectPath	= projectGetPaths(_projectName) -- this will load the project script and cache the path, if not already cached
 	local name			= projectGetBaseName(_projectName)
 
+	g_projectScriptIsLoaded[name] = true
+
 	if scriptPath ~= nil then
 		if pathIsFileCached(scriptPath) then
 			if g_fileIsLoaded[scriptPath] == nil then
@@ -954,10 +972,10 @@ function projectLoad(_projectName, _loadAndAdd)
 
 				if not pathIsDirCached(projectPath) then
 					if not projectInstall3rdPartyLib(_projectName) then
-						printErrorAndExit("Could not find or download dependency - " .. _projectName)
+						printError("Could not find or download dependency - " .. _projectName)
 					end					
 				end
-				
+
 				if _G["projectAdd_" .. name] == nil then -- prebuilt libs have no projects
 					printWarning("Project " .. textColor(name, Color.Cyan) .. " loaded, but no add function found. This may be a prebuilt library, if so this message can be ignored.")
 				end
@@ -968,20 +986,17 @@ function projectLoad(_projectName, _loadAndAdd)
 				end
 
 				g_fileIsLoaded[scriptPath] = true
-				g_projectScriptIsLoaded[name] = true
-			else
-				g_projectScriptIsLoaded[name] = true
 			end
 		end
 	else
-		printErrorAndExit("Could not find script for project - " .. _projectName)
+		printWarning("Could not find script for project - " .. _projectName)
 	end
 end
 
 local function projectLoadIfNeeded(_projectName, _loadAndAdd)
 	local name = projectGetBaseName(_projectName)
 	if g_projectScriptIsLoaded[name] then
-		return
+		return  
 	end
 	projectLoad(_projectName, _loadAndAdd)
 end
@@ -1080,6 +1095,7 @@ end
 function addDependencies(_name, _additionalDeps)
 	local dependencies = projectGetDependencies(_name, _additionalDeps)
 	addExtraSettingsForExecutable(_name)
+	printProjectAdded(_name, projectGetPath(_name))
 
 	if dependencies ~= nil then
 		for _,dependency in ipairs(dependencies) do
@@ -1094,11 +1110,7 @@ function addDependencies(_name, _additionalDeps)
 				end
 
 				if g_projectIsAdded[depName] == nil then
-					if _G["projectAdd_" .. depName] ~= nil then
-						_G["projectAdd_" .. depName]()
-						g_projectIsAdded[depName] = true
-						printProjectAdded(depName, projectGetPath(dependency))
-					end
+					projectAdd(depName)
 				end
 			end
 		end
@@ -1118,7 +1130,7 @@ function addLibSubProjects_samples(_name)
 	local sampleDirs = os.matchdirs(samplesDir .. "*") 
 	for _,dir in ipairs(sampleDirs) do
 		local dirName = path.getbasename(dir)
-		printProjectAdded(_name .. "_" .. dirName, dir)
+		projectAddPathToCache(_name .. "_" .. dirName, dir)
 		addProject_lib_sample(_name, dirName)
 	end
 end
@@ -1135,7 +1147,7 @@ function addLibSubProjects_unittests(_name)
 
 	local testDir = projectDir .. "/tests/"
 	if pathIsDirCached(testDir) then
-		printProjectAdded(_name .. "_test", testDir)
+		projectAddPathToCache(_name .. "_test", testDir)
 		addProject_lib_test(_name)
 	end
 end
@@ -1153,7 +1165,7 @@ function addLibSubProjects_tools(_name)
 	local toolsDirs = os.matchdirs(projectDir .. "/tools/*") 
 	for _,dir in ipairs(toolsDirs) do
 		local dirName = path.getbasename(dir)
-		printProjectAdded(_name .. "_" .. dirName, dir)
+		projectAddPathToCache(_name .. "_" .. dirName, dir)
 		addProject_lib_tool(_name, dirName)
 	end
 end
@@ -1188,7 +1200,7 @@ function getToolForHost(_name)
 	local projectDir = projectGetPath("zidar")
 
 	if not projectDir then
-		printErrorAndExit("zidar project directory not found, cannot determine tool paths")
+		printError("zidar project directory not found, cannot determine tool paths")
 	end
 
 	local toolPath = path.getabsolute(projectDir .. "/tools/bin/")

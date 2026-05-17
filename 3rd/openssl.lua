@@ -26,6 +26,7 @@ function projectExtraConfigExecutable_openssl()
 				"libcrypto",
 				"libssl"
 			}
+		configuration {}
 	end
 end
 

@@ -446,8 +446,7 @@ function toolchain()
 		if nil == _OPTIONS["gcc"] then
 			printErrorAndExit("GCC flavor must be specified!")
 		end
-
-		location (path.join(getLocationDir(), _ACTION .. "-" .. _OPTIONS["gcc"]))
+		location ( getLocationDir() )
 
 		if "android-arm"    == _OPTIONS["gcc"]
 		or "android-arm64"  == _OPTIONS["gcc"]

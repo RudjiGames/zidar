@@ -7,7 +7,7 @@
 function addProject_lib_sample(_name, _sampleName)
 
 	group	( "samples" )
-	project ( _sampleName )
+	project ( _name .. "_" .. _sampleName )
 
 		project().kind = "ConsoleApp"
 
@@ -17,8 +17,7 @@ function addProject_lib_sample(_name, _sampleName)
 
 		local libsPath = path.getdirectory(projectGetPath(_name))
 
-		local projectPath = libsPath .. "/" .. _name
-
+		local projectPath	= libsPath .. "/" .. _name
 		local srcFilesPath	= projectPath .. "/samples/" .. _sampleName
 		local incFilesPath	= srcFilesPath .. "/**.h"
 		local sourceFiles	= projectSourceFilesWildcard(srcFilesPath)
@@ -30,10 +29,10 @@ function addProject_lib_sample(_name, _sampleName)
 			language	"C"
 		end					
 
-		local withBGFX	= projectRequiresBGFX( srcFilesPath )
 		includedirs
 		{ 
 			projectPath .. "/samples",
+			projectPath .. "/samples" .. "/" .. _sampleName,
 			incFilesPath,
 		}
 		
@@ -41,7 +40,7 @@ function addProject_lib_sample(_name, _sampleName)
 
 		local dependencies = { _name }
 
-		if withBGFX then
+		if projectRequiresBGFX( srcFilesPath ) then
 			dependencies[#dependencies + 1] = "bgfx"
 		end
 

@@ -44,7 +44,7 @@ end
 - **Console support** — PlayStation 4/5 (Orbis/Prospero), Xbox One (Durango), Nintendo Switch
 - **Qt 6 integration** — automatic MOC, UIC, RCC, and translation file processing
 - **Shader compilation** — bgfx shader cross-compilation (GLSL, SPIR-V, DirectX 9/11, Metal) as a pre-build step
-- **Third-party library management** — build scripts for 60+ common libraries
+- **Third-party library management** — build scripts for 63 common libraries
 - **Precompiled header support** — automatic PCH detection and configuration
 - **Deployment** — platform-specific packaging, icon generation, and manifest creation
 
@@ -155,9 +155,9 @@ Projects are defined through named callback functions. Zidar calls them automati
 
 ## Third-Party Libraries
 
-Zidar includes build scripts for 60+ libraries in `3rd/`. When a dependency isn't found locally, zidar automatically downloads it via `git clone`:
+Zidar includes build scripts for 63 libraries in `3rd/`. When a dependency isn't found locally, zidar automatically downloads it via `git clone`:
 
-`assimp` `basis_universal` `bgfx` `bimg` `bnet` `box2d` `bx` `cgltf` `curl` `efsw` `enet` `enkiTS` `fcpp` `freetype2` `imgui` `jolt` `libdom` `libparserutils` `librdkafka` `libsvgtiny` `libtess2` `libuv` `libwapcaplet` `libxml2` `lua` `mbedtls` `meshoptimizer` `minilua` `msdf_atlas_gen` `msdfgen` `nanosvg` `nanovg` `ogg` `openssl` `raw_pdb` `sasl2` `simple-svg` `soloud` `sparsehash` `spdlog` `squish` `stb` `subprocess.h` `ta_lib` `tbb` `tinygltf` `tinyspline` `tinyxml2` `tomlplusplus` `ufbx` `unity` `unittest-cpp` `usockets` `uwebsockets` `vg_renderer` `vorbis` `wolfssl` `xxHash` `zfp` `zlib` `zstd`
+`assimp` `basis_universal` `bgfx` `bimg` `bnet` `box2d` `bx` `cgltf` `curl` `DIA` `efsw` `enet` `enkiTS` `fcpp` `freetype2` `imgui` `jolt` `libdom` `libparserutils` `librdkafka` `libsvgtiny` `libtess2` `libuv` `libwapcaplet` `libxml2` `lua` `mbedtls` `meshoptimizer` `minilua` `msdf_atlas_gen` `msdfgen` `nanosvg` `nanosvg2` `nanovg` `ogg` `openssl` `raw_pdb` `sasl2` `simple-svg` `soloud` `sparsehash` `spdlog` `squish` `stb` `subprocess.h` `ta_lib` `tbb` `tinygltf` `tinyspline` `tinyxml2` `tomlplusplus` `ufbx` `unity` `unittest-cpp` `usockets` `uwebsockets` `vg_renderer` `vorbis` `wolfssl` `xxHash` `zfp` `zlib` `zstd`
 
 ## Samples
 

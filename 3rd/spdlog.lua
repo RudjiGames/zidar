@@ -24,6 +24,7 @@ function projectExtraConfig_spdlog()
 	defines { "SPDLOG_COMPILED_LIB" }
 	configuration "vs*"
 		buildoptions { "/wd 4530" }
+	configuration {}
 end
 
 function projectAdd_spdlog()

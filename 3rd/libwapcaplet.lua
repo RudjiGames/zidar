@@ -4,8 +4,8 @@
 -- License: https://github.com/RudjiGames/zidar/blob/master/LICENSE
 --
 
--- LibDOM - an implementation of the W3C DOM
--- https://github.com/netsurf-plan9/libdom.git
+-- String internment library 
+-- https://github.com/netsurf-browser/libwapcaplet.git
 
 local params		= { ... }
 local LIBWAP_ROOT	= params[1]
@@ -27,5 +27,5 @@ function projectAdd_libwapcaplet()
 end
 
 function projectSource_libwapcaplet()
-	return "https://github.com/netsurf-plan9/libdom.git"
+	return "https://github.com/netsurf-browser/libwapcaplet.git"
 end

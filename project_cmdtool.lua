@@ -26,7 +26,7 @@ function addProject_cmd(_name)
 		end
 
 		files		{ sourceFiles }
-		includedirs	{ rootPath, projectPath }
+		includedirs	{ rootPath, projectPath, path.join(rootPath, _name .. "/src") }
 
 		addPCH( projectPath, project().name )
 

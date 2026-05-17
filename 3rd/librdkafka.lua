@@ -34,7 +34,7 @@ function projectExtraConfig_librdkafka()
 	includedirs {
 		KAFKA_ROOT .. "/include",
 		KAFKA_ROOT,
-		ZSTD_INC   .. "lib/common"
+		ZSTD_INC   .. "/lib/common"
 	}
 
  	configuration { "vs*", "windows" }

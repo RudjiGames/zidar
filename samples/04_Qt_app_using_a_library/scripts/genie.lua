@@ -13,3 +13,4 @@ dofile("04_Qt_app_using_a_library.lua")
 solution "Qt_app_using_a_library"
 	setPlatforms()
 	projectAdd("04_Qt_app_using_a_library")
+	startproject "04_Qt_app_using_a_library"

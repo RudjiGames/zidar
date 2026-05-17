@@ -4,8 +4,8 @@
 -- License: https://github.com/RudjiGames/zidar/blob/master/LICENSE
 --
 
--- LibDOM - an implementation of the W3C DOM
--- https://github.com/netsurf-plan9/libdom.git
+-- Lexer/parser utility functions 
+-- https://github.com/netsurf-browser/libparserutils.git
 
 local params		= { ... }
 local LIBPU_ROOT	= params[1]
@@ -31,5 +31,5 @@ function projectAdd_libparserutils()
 end
 
 function projectSource_libparserutils()
-	return "https://github.com/netsurf-plan9/libdom.git"
+	return "https://github.com/netsurf-browser/libparserutils.git"
 end

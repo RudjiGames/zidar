@@ -364,9 +364,10 @@ dofile("03_tool_using_a_library.lua")
 solution "tool_using_a_library"
     setPlatforms()
     projectAdd("03_tool_using_a_library")
+    startproject "03_tool_using_a_library"
 ```
 
-Only `projectAdd()` for the tool is called — zidar automatically pulls in `02_hello_library` as a dependency. The generated solution contains both projects with the correct build order.
+Only `projectAdd()` for the tool is called — zidar automatically pulls in `02_hello_library` as a dependency. The generated solution contains both projects with the correct build order. The `startproject` directive tells the IDE which project to run when pressing "Start Debugging".
 
 ### Dependency Resolution in Action
 

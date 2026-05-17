@@ -31,7 +31,7 @@ end
 
 function projectExtraConfig_bnet()
 	if os.is("windows") then
-		links { "Ws_32.lib", "Mswsock.lib", "AdvApi32.lib" }
+		links { "Ws2_32.lib", "Mswsock.lib", "AdvApi32.lib" }
 	end
 	includedirs { BNET_INCLUDE }
 end
