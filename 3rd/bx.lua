@@ -31,6 +31,13 @@ end
 function projectExtraConfig_bx()
  	configuration { "vs*", "windows" }
 		buildoptions { "/wd4324" } -- 4324 -  structure was padded due to alignment specifier
+		includedirs { BX_ROOT .. "/include/compat/msvc" }	-- dirent.h and other CRT shims
+	configuration { "mingw*" }
+		includedirs { BX_ROOT .. "/include/compat/mingw" }
+	configuration { "osx-* or xcode*" }
+		includedirs { BX_ROOT .. "/include/compat/osx" }
+	configuration { "ios-*" }
+		includedirs { BX_ROOT .. "/include/compat/ios" }
 	configuration {}
 	includedirs { BX_INCLUDE }
 	projectDependencyConfig_bx()

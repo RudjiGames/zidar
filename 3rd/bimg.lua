@@ -15,6 +15,7 @@ local BIMG_INCLUDE	= {
 	BIMG_ROOT .. "/include",
 	BIMG_ROOT .. "/3rdparty",
 	BIMG_ROOT .. "/3rdparty/iqa/include",
+	BIMG_ROOT .. "/3rdparty/tinyexr/deps",			-- resolves #include <miniz/miniz.c>
 	BIMG_ROOT .. "/3rdparty/tinyexr/deps/miniz",
 	ASTC_CODEC_DIR,
 	ASTC_CODEC_DIR .. "include",
