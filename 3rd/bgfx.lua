@@ -147,6 +147,12 @@ function projectExtraConfigExecutable_bgfx()
 function projectExtraConfig_bgfx()
  	includedirs { BGFX_INCLUDE }
 
+	configuration { "debug or release" }
+		defines { "BX_CONFIG_DEBUG=1" }
+	configuration { "retail" }
+		defines { "BX_CONFIG_DEBUG=0" }
+	configuration {}
+
 	local BGFX_DEFINES = {}
 	if _OPTIONS["with-glfw"] then
 		BGFX_DEFINES = { "BGFX_CONFIG_MULTITHREADED=0" }
