@@ -20,6 +20,11 @@ function addProject_lib_sample(_name, _sampleName)
 		local projectPath	= libsPath .. "/" .. _name
 		local srcFilesPath	= projectPath .. "/samples/" .. _sampleName
 		local incFilesPath	= srcFilesPath .. "/**.h"
+
+		-- samples have no genie.lua of their own, so projectGetPath() cannot
+		-- discover them. Register the resolved path here so the project is
+		-- self-sufficient regardless of how it was added.
+		projectAddPathToCache(project().name, srcFilesPath)
 		local sourceFiles	= projectSourceFilesWildcard(srcFilesPath)
 		files  { sourceFiles }
 

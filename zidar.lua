@@ -1140,8 +1140,7 @@ function addLibSubProjects_samples(_name)
 	local sampleDirs = os.matchdirs(samplesDir .. "*") 
 	for _,dir in ipairs(sampleDirs) do
 		local dirName = path.getbasename(dir)
-		projectAddPathToCache(_name .. "_" .. dirName, dir)
-		addProject_lib_sample(_name, dirName)
+		addProject_lib_sample(_name, dirName) -- registers its own path in the cache
 	end
 end
 
