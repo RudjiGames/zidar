@@ -582,6 +582,14 @@ local function pathIsFileCached(_path, _force)
 	return cached
 end
 
+-- Cross-platform test for a filesystem root (drive root on Windows, "/" on POSIX).
+-- A path is a root when going up one level no longer changes it. path.getabsolute
+-- normalizes "c:/", "c:", "D:\" and "/" identically, so this needs no per-OS casing.
+local function pathIsRoot(_path)
+	local abs = pathGetAbsoluteCached(_path)
+	return pathGetAbsoluteCached(path.join(abs, "..")) == abs
+end
+
 local function getChildDirsCached(_dir)
 	local absDir = pathGetAbsoluteCached(_dir)
 	local cached = _dirChildrenCache[absDir]
@@ -632,7 +640,8 @@ local function findDirByNameRecursive(_dir, _name, _depth, _maxDepth, _validator
 		end
 	end
 
-	if _depth < _maxDepth then
+	-- stop at a filesystem root: never recurse into a whole drive (would hang on a system drive)
+	if _depth < _maxDepth and not pathIsRoot(absDir) then
 		for _, subDir in ipairs(childDirs) do
 			local found = findDirByNameRecursive(subDir, _name, _depth + 1, _maxDepth, _validator)
 			if found then
@@ -684,7 +693,8 @@ local function findScriptInDirCached(_dir, _depth, _maxDepth, _scriptName)
 		end
 	end
 
-	if _depth < _maxDepth then
+	-- stop at a filesystem root: never recurse into a whole drive (would hang on a system drive)
+	if _depth < _maxDepth and not pathIsRoot(absDir) then
 		local _, childDirs = getChildDirsCached(absDir)
 		for _, childDir in ipairs(childDirs) do
 			local result = findScriptInDirCached(childDir, _depth + 1, _maxDepth, _scriptName)
@@ -739,12 +749,12 @@ function projectInstall3rdPartyLib(_name)
 	return false
 end
 
--- Returns true if the path is a filesystem root (parent equals itself)
+-- Returns true if the path is a filesystem root (or the configured zidar home boundary)
 function pathIsRootPath(_path)
 	if RG_ZIDAR_HOME_DIR and RG_ZIDAR_HOME_DIR == _path then
 		return true
 	end
-	return _path == "/" or _path:match("^%a:/$")
+	return pathIsRoot(_path)
 end
 
 -- Caches a project's resolved directory path, errors on conflict
