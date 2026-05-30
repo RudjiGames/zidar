@@ -997,13 +997,21 @@ function projectAdd(_name)
 	if g_projectIsAdded[name] == nil then
 		local projectPath = projectGetPath(name)
 		if not projectPath then
-			local oslib = os.findlib(_name)
-			if not oslib then
+			local oslibdir = os.findlib(_name)
+			if not oslibdir then
 				printError("Could not find project or OS library for dependency - " .. _name)
 				return
 			end
-			printWarning("Project " .. textColor(name, Color.Cyan) .. " not found, but found OS library: " .. textColor(oslib, Color.Yellow) .. ". Linking against it instead.")
-			links { oslib }
+			-- os.findlib() returns the DIRECTORY that contains the library (e.g.
+			-- "/usr/lib/x86_64-linux-gnu"), not a link name. Linking that path
+			-- directly makes GENie emit "-l<dir-basename>" (e.g.
+			-- "-lx86_64-linux-gnu"), which the linker can't resolve. Link the
+			-- library by its name instead and add the directory as a search path.
+			printWarning("Project " .. textColor(name, Color.Cyan) .. " not found, but found OS library: " .. textColor(_name, Color.Yellow) .. " in " .. textColor(oslibdir, Color.Yellow) .. ". Linking against it instead.")
+			if type(oslibdir) == "string" and #oslibdir > 0 then
+				libdirs { oslibdir }
+			end
+			links { _name }
 			return
 		end
 		local dependencies = projectGetDependencies(name)
