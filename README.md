@@ -190,8 +190,7 @@ Each sample includes a standalone `genie.lua` so it can be built independently.
 | `project_qt.lua` | Qt application/library project setup |
 | `qtpresets6.lua` | Qt 6 MOC/QRC/UI/translation processing |
 | `qtprebuild.lua` | Qt pre-build file operations (standalone) |
-| `embedded_files.lua` | Shader compilation pre-build step configuration |
-| `embedded_shader_prebuild.lua` | Shader compilation script (standalone) |
+| `embedded_files.lua` | Embedded shader compilation (`addShaders`, genie-time regeneration) |
 | `deploy.lua` | Platform-specific deployment and packaging |
 | `3rd/*.lua` | Individual build scripts for third-party libraries |
 

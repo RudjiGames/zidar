@@ -84,6 +84,16 @@ local function sedAppendReplace(_str, _search, _replace, _last)
 	return _str
 end
 
+-- Forward declarations: the dispatcher below calls these handlers, which are
+-- defined later in this file. Without these locals the names would resolve to
+-- nil globals and the call would fail.
+local prepareDeployment_iOS
+local prepareDeployment_AsmJS
+local prepareDeployment_Linux
+local prepareDeployment_OSX
+local prepareDeployment_Android
+local prepareDeployment_Windows
+
 function prepareProjectDeployment(_platform, _configuration, _binDir)
 	if  getTargetOS() == "ios"	or
 		getTargetOS() == "tvos" then
@@ -132,23 +142,24 @@ imagesConverted = {}
 -- 480 x 480
 -- 1920 x 1080
 
-local function prepareDeployment_iOS(_platform, _configuration, _binDir)
+function prepareDeployment_iOS(_platform, _configuration, _binDir)
 end
 
-local function prepareDeployment_AsmJS(_platform, _configuration, _binDir)
+function prepareDeployment_AsmJS(_platform, _configuration, _binDir)
 end
 
-local function prepareDeployment_Linux(_platform, _configuration, _binDir)
+function prepareDeployment_Linux(_platform, _configuration, _binDir)
 end
 
-local function prepareDeployment_OSX(_platform, _configuration, _binDir)
+function prepareDeployment_OSX(_platform, _configuration, _binDir)
 end
 
-local function prepareDeployment_Android(_platform, _configuration, _binDir)
+function prepareDeployment_Android(_platform, _configuration, _binDir)
 	local copyDst = _binDir .. "/deploy/" .. project().name
 	local copySrc = RG_SCRIPTS_DIR .. "/deploy/android/"
 	
 	local desc = projectGetDescription(project().name)
+	if desc == nil then return end
 
 	local str_arch = "armeabi-v7a"
 	if (_OPTIONS["gcc"] == "android-x86") then 
@@ -188,7 +199,7 @@ local function prepareDeployment_Android(_platform, _configuration, _binDir)
 	-- dodati post build command prema filteru
 end
 
-local function prepareDeployment_Windows(_platform, _configuration, _binDir)
+function prepareDeployment_Windows(_platform, _configuration, _binDir)
 	local copyDst = RG_LOCATION_PATH .. "/" .. project().name .. "/Image/Loose"
 	local copySrc = RG_SCRIPTS_DIR .. "/deploy/durango/"
 
@@ -245,7 +256,7 @@ local function prepareDeployment_Windows(_platform, _configuration, _binDir)
 	
 	cloneDirWithSed(copySrc, copyDst, sedCmd)
 	
-	files { copyDst .. "Appxmanifest.xml" }
-	files { copyDst .. "Package.appxmanifest" }
+	files { path.join(copyDst, "Appxmanifest.xml") }
+	files { path.join(copyDst, "Package.appxmanifest") }
 
 end

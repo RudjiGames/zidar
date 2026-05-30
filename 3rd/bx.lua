@@ -38,6 +38,8 @@ function projectExtraConfig_bx()
 		includedirs { BX_ROOT .. "/include/compat/osx" }
 	configuration { "ios-*" }
 		includedirs { BX_ROOT .. "/include/compat/ios" }
+	configuration { "linux-* or freebsd" }
+		includedirs { BX_ROOT .. "/include/compat/linux" }	-- sal.h and other Win SDK shims
 	configuration {}
 	includedirs { BX_INCLUDE }
 	projectDependencyConfig_bx()

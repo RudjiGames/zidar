@@ -19,6 +19,9 @@ local BGFX_INCLUDE	= {
 	projectGetPath("bimg") .. "/include"
 }
 
+-- bx ships Win SDK shims (sal.h etc.) needed by bgfx's dxgi.h on Linux/FreeBSD.
+-- Resolved at load time (like BGFX_INCLUDE above) so the path matches bx/include.
+
 local BGFX_FILES = {
 	BGFX_ROOT .. "/src/amalgamated.cpp",
 	BGFX_ROOT .. "/include/**.h"
@@ -145,6 +148,7 @@ function projectExtraConfigExecutable_bgfx()
  end
 
 function projectExtraConfig_bgfx()
+	print("DEBUG gentime bx=[" .. tostring(projectGetPath("bx")) .. "]")
  	includedirs { BGFX_INCLUDE }
 
 	configuration { "debug or release" }
@@ -165,10 +169,11 @@ function projectExtraConfig_bgfx()
 			"-Wno-microsoft-const-init", -- default initialization of an object of const type '' without a user-provided default constructor is a Microsoft extension
 		}														
 
-	configuration { "linux*" }
+	configuration { "linux* or freebsd" }
 		includedirs {	BGFX_ROOT .. "/3rdparty/directx-headers/include/directx",
 						BGFX_ROOT .. "/3rdparty/directx-headers/include",
-						BGFX_ROOT .. "/3rdparty/directx-headers/include/wsl/stubs" }
+						BGFX_ROOT .. "/3rdparty/directx-headers/include/wsl/stubs",
+						BX_COMPAT_LINUX }	-- sal.h and other Win SDK shims (dxgi.h)
 
 	configuration { "vs* or mingw*", "not durango" }
 		includedirs {	BGFX_ROOT .. "/3rdparty/directx-headers/include/directx"	}

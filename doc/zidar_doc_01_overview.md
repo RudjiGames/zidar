@@ -33,8 +33,7 @@ Zidar is organized into the following scripts:
 | `deploy.lua` | Platform-specific deployment, packaging, manifest generation, icon conversion | ~8400 lines |
 | `qtpresets6.lua` | Qt 6 project configuration and prebuild commands | |
 | `qtprebuild.lua` | Standalone Qt tool executor (moc, uic, rcc, lrelease) | |
-| `embedded_files.lua` | Shader prebuild command generation | |
-| `embedded_shader_prebuild.lua` | Standalone shader compilation script | |
+| `embedded_files.lua` | Embedded shader compilation (`addShaders`, genie-time regeneration) | |
 | `project_lib.lua` | Library project type — static/shared libs with auto C/C++ detection | |
 | `project_game.lua` | Game project type — WindowedApp in retail, ConsoleApp in debug/release | |
 | `project_cmdtool.lua` | Command-line tool project type | |
