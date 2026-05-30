@@ -22,8 +22,6 @@ local function setSubConfig(_platform, _configuration, _is64bit, _index)
 
 	commonConfig(_platform, _configuration, _is64bit)
 
-	shaderConfigure(_platform, _configuration, projName)
-
 	local prefix = ""
 	if _configuration == "debug" then
 		prefix = "d"
@@ -69,6 +67,9 @@ for _,config in ipairs(all_configs) do
 	setConfig(config)
 end
 configuration {}
+
+-- Regenerate embedded-shader headers once per project (config/platform neutral).
+shaderConfigure(project().name)
 
 vpaths {
 	{ ["shaders"]			= "**.sc" },
