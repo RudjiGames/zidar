@@ -20,7 +20,8 @@ local BGFX_INCLUDE	= {
 }
 
 -- bx ships Win SDK shims (sal.h etc.) needed by bgfx's dxgi.h on Linux/FreeBSD.
--- Resolved at load time (like BGFX_INCLUDE above) so the path matches bx/include.
+-- Resolved like BGFX_INCLUDE above so the path matches the bx/include that works.
+local BX_COMPAT_LINUX = projectGetPath("bx") .. "/include/compat/linux"
 
 local BGFX_FILES = {
 	BGFX_ROOT .. "/src/amalgamated.cpp",
@@ -148,7 +149,6 @@ function projectExtraConfigExecutable_bgfx()
  end
 
 function projectExtraConfig_bgfx()
-	print("DEBUG gentime bx=[" .. tostring(projectGetPath("bx")) .. "]")
  	includedirs { BGFX_INCLUDE }
 
 	configuration { "debug or release" }
