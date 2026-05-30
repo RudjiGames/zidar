@@ -1174,6 +1174,24 @@ function addDependencies(_name, _additionalDeps)
 	printProjectAdded(_name, projectGetPath(_name))
 
 	if dependencies ~= nil then
+		-- Add any dependency projects that aren't in the solution yet FIRST.
+		-- projectAdd() activates a new project() (and recursively adds its own
+		-- dependencies), which would change the active project out from under
+		-- the links/includedirs below. Doing it as a separate pass keeps those
+		-- settings attached to _name's project regardless of what gets added.
+		for _,dependency in ipairs(dependencies) do
+			if dependency ~= nil then
+				local depName = projectNameCleanup(dependency)
+				if g_projectIsAdded[depName] == nil then
+					projectAdd(depName)
+				end
+			end
+		end
+
+		-- Re-activate this project and emit its include paths / links. By now
+		-- the active project may be some dependency created above, so reselect.
+		project(_name)
+		configuration {}
 		for _,dependency in ipairs(dependencies) do
 			if dependency ~= nil then
 				local depName = projectNameCleanup(dependency)
@@ -1181,12 +1199,14 @@ function addDependencies(_name, _additionalDeps)
 				addExtraSettingsForExecutable(depName)
 				addIncludePaths(_name, dependency)
 
+				-- Apply any dependency-provided configuration (extra defines such
+				-- as BX_CONFIG_DEBUG, etc.) in THIS project's scope. Doing it here
+				-- guarantees every consumer gets it, regardless of the cached
+				-- resolution order in projectGetDependencies().
+				configDependency(dependency)
+
 				if _G["projectHeaderOnlyLib_" .. depName] == nil then
 					links { depName }
-				end
-
-				if g_projectIsAdded[depName] == nil then
-					projectAdd(depName)
 				end
 			end
 		end
