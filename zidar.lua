@@ -487,20 +487,24 @@ function projectIsCPP(_projectFiles)
 		return cached
 	end
 
-	for _, entry in ipairs(_projectFiles) do
-		local extension = string.lower(path.getextension(entry))
-		if _projectIsCPPExtensions[extension] then
-			local exists = false
-			if string.find(entry, "*", 1, true) ~= nil then
-				exists = next(os.matchfiles(entry)) ~= nil
-			else
-				exists = os.isfile(entry)
-			end
+	local function isCPPFile(_file)
+		return _projectIsCPPExtensions[string.lower(path.getextension(_file))] == true
+	end
 
-			if exists then
-				_projectIsCPPCache[cacheKey] = true
-				return true
+	for _, entry in ipairs(_projectFiles) do
+		if string.find(entry, "*", 1, true) ~= nil then
+			-- Glob pattern: inspect the files it actually expands to. The
+			-- pattern's own extension can be a wildcard (e.g. ".*" in
+			-- "src/**.*") which tells us nothing about the source language.
+			for _, file in ipairs(os.matchfiles(entry)) do
+				if isCPPFile(file) then
+					_projectIsCPPCache[cacheKey] = true
+					return true
+				end
 			end
+		elseif os.isfile(entry) and isCPPFile(entry) then
+			_projectIsCPPCache[cacheKey] = true
+			return true
 		end
 	end
 
