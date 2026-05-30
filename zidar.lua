@@ -415,6 +415,12 @@ function mergeTables(...)
     end
     return result
 end
+
+-- Merges two tables into one, removing duplicates. Kept as a named convenience
+-- for project scripts; mergeTables() is the variadic, general form.
+function mergeTwoTables(_a, _b)
+	return mergeTables(_a, _b)
+end
 --------------------------------------------------------
 -- Prerequisites
 --------------------------------------------------------
@@ -527,6 +533,24 @@ function projectGetBaseName(_projectName)
 		return _projectName[1]
 	end
 	return _projectName
+end
+
+-- Returns the base project name for a suffixed variant (e.g. "rapp" for
+-- "rapp_bgfx"), or nil when the name is not a variant. A variant is identified
+-- by having a projectAdd_<name> hook while sharing the source tree and build
+-- script of a base project obtained by trimming the trailing "_<suffix>".
+-- Only consulted as a fallback, after a direct lookup has already failed, so
+-- real projects whose own name contains underscores are never misclassified.
+function projectVariantBaseName(_projectName)
+	local name = projectGetBaseName(_projectName)
+	if _G["projectAdd_" .. projectNameCleanup(name)] == nil then
+		return nil
+	end
+	local trimmed = string.match(name, "^(.+)_[^_]+$")
+	if trimmed and trimmed ~= name then
+		return trimmed
+	end
+	return nil
 end
 
 -- Sanitizes a name by replacing dashes and dots with underscores
@@ -715,7 +739,6 @@ end
 
 -- Returns true if a specially named header exists in the given path, indicating that the project requires bgfx
 function projectRequiresBGFX(_sourcePath)
-	print(_sourcePath .. "/" .. projectNameCleanup(project().name) .. "_uses_bgfx.h")
 	if pathIsFileCached(_sourcePath .. "/" .. projectNameCleanup(project().name) .. "_uses_bgfx.h") then
 		return true
 	end
@@ -818,6 +841,16 @@ function projectGetPath(_name, _canFail)
 		result = projectInstallDestination(_name)
 	end
 
+	-- variant projects (e.g. "rapp_bgfx") share the source tree of a base
+	-- project ("rapp"); when a suffixed name has a projectAdd_<name> function
+	-- but no directory of its own, resolve it from its base name.
+	if not result then
+		local base = projectVariantBaseName(name)
+		if base then
+			result = projectGetPath(base, true)
+		end
+	end
+
 	if result then
 		projectAddPathToCache(_name, result)
 	end
@@ -877,6 +910,16 @@ function projectGetScriptPath(_name, _requester)
 		searchDir = upDir
 	end
 
+	-- variant projects (e.g. "rapp_bgfx") share their base project's build
+	-- script (rapp.lua), which is already loaded by the time the variant is
+	-- referenced as a dependency.
+	if not result then
+		local base = projectVariantBaseName(name)
+		if base then
+			result = projectGetScriptPath(base, _requester)
+		end
+	end
+
 	if not result then
 		printError("Could not find or download dependency - " .. textColor(name, Color.Cyan))
 	end
@@ -891,6 +934,25 @@ end
 -- Returns a table with .script and .path for the given project name
 function projectGetPaths(_name)
 	return projectGetScriptPath(_name), projectGetPath(_name)
+end
+
+-- Returns the resolved directory of a project (no trailing slash).
+-- Convenience name kept for project scripts; projectGetPath() is the canonical form.
+function getProjectPath(_name)
+	return projectGetPath(_name)
+end
+
+-- Returns the resolved directory of a 3rd party project WITH a trailing slash,
+-- so callers can append sub-paths directly (e.g. bgfxPath .. "3rdparty/").
+function find3rdPartyProject(_name)
+	local projectPath = projectGetPath(_name)
+	if projectPath == nil then
+		return nil
+	end
+	if string.sub(projectPath, -1) ~= "/" then
+		projectPath = projectPath .. "/"
+	end
+	return projectPath
 end
 
 -- Returns the public header directory for a project ("include" or "inc"), or nil if neither exists

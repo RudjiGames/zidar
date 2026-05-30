@@ -28,7 +28,10 @@ function projectExtraConfig_enkiTS()
 end
 
 function projectAdd_enkiTS()
-	addProject_3rdParty_lib("enkiTS", ENKITS_FILES)
+	-- enkiTS mixes C++ (TaskScheduler.cpp) and C (TaskScheduler_c.cpp) sources.
+	-- Force C++ so the whole project builds as C++ even when the sources are
+	-- cloned on demand and aren't yet visible to projectIsCPP() at gen time.
+	addProject_3rdParty_lib("enkiTS", ENKITS_FILES, nil, "C++")
 end
 
 function projectSource_enkiTS()

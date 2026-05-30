@@ -43,9 +43,14 @@ function addProject_lib_sample(_name, _sampleName)
 		
 		addPCH( srcFilesPath, project().name )
 
+		-- A sample that uses bgfx links the bgfx-enabled variant of the library
+		-- (e.g. rapp_bgfx) instead of the plain one: the bgfx/imgui/vg symbols
+		-- only exist in that variant. Depending on it also runs the variant's
+		-- executable extra-config (bgfx / imgui include paths).
 		local dependencies = { _name }
 
 		if projectRequiresBGFX( srcFilesPath ) then
+			dependencies[1] = _name .. "_bgfx"
 			dependencies[#dependencies + 1] = "bgfx"
 		end
 

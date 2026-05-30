@@ -4,7 +4,7 @@
 -- License: https://github.com/RudjiGames/zidar/blob/master/LICENSE
 --
 
-function addProject_3rdParty_lib(_name, _libFiles, _exceptions)
+function addProject_3rdParty_lib(_name, _libFiles, _exceptions, _language)
 
 	group	( "3rd" )
 	project ( _name )
@@ -20,11 +20,17 @@ function addProject_3rdParty_lib(_name, _libFiles, _exceptions)
 			flags { "NoExceptions" }
 		end
 
-		if projectIsCPP(_libFiles) then
+		-- An explicit language wins over auto-detection: the sources for a
+		-- 3rd party lib may be cloned on demand during generation, in which
+		-- case projectIsCPP() can run before the files exist on disk and
+		-- wrongly fall back to "C" (which makes MSVC compile .cpp as C).
+		if _language then
+			language	( _language )
+		elseif projectIsCPP(_libFiles) then
 			language	"C++"
 		else
 			language	"C"
-		end	
+		end
 
 		projectConfig()
 		addDependencies(project().name)

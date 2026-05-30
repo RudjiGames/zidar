@@ -4,10 +4,17 @@
 -- License: https://github.com/RudjiGames/zidar/blob/master/LICENSE
 --
 
-function addProject_lib(_name, _libType, _shared, _disablePCH)
+function addProject_lib(_name, _libType, _shared, _suffix, _disablePCH)
+
+	-- A suffixed variant (e.g. "rapp_bgfx") is a second project built from the
+	-- same sources as its base project ("rapp") but with a different
+	-- configuration. All paths are resolved from the base name; only the
+	-- project (and its dependencies/extra-config hooks) use the suffixed name.
+	_suffix		= _suffix or ""
+	local projectName = _name .. _suffix
 
 	group	( vpathStringFromLibraryType(_libType) )
-	project	( _name )
+	project	( projectName )
 
 		_shared		= _shared or false
 		_disablePCH	= _disablePCH or false
@@ -16,7 +23,7 @@ function addProject_lib(_name, _libType, _shared, _disablePCH)
 		if _shared then
 			project().kind = "SharedLib"
 		end
-		
+
 		kind	( project().kind )
 		uuid	( os.uuid(project().name) )
 		flags	{ Flags_Libraries }
@@ -57,7 +64,7 @@ function addProject_lib(_name, _libType, _shared, _disablePCH)
 		end
 
 		if _disablePCH ~= true then
-			addPCH( srcFilesPath, _name )
+			addPCH( srcFilesPath, projectName )
 		end
 		
 		projectConfig()
