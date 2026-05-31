@@ -177,15 +177,19 @@ function projectExtraConfig_bgfx()
 
 	configuration { "vs* or mingw*", "not durango" }
 		includedirs {	BGFX_ROOT .. "/3rdparty/directx-headers/include/directx"	}
-	
+
+	-- Modern bgfx folds the Metal renderer (renderer_mtl.cpp) into amalgamated.cpp,
+	-- so it must be compiled as Objective-C++ on Apple targets (matches bgfx's own
+	-- genie script). Previously this came for free from the now-removed amalgamated.mm.
+	configuration { "osx* or ios*" }
+		buildoptions { "-x objective-c++" }
+
 	configuration {}
 end
 
 function projectAdd_bgfx()
-	if isAppleTarget() then
-		table.insert(BGFX_FILES, BGFX_ROOT .. "/src/amalgamated.mm")
-	end
-	
+	-- Modern bgfx no longer ships src/amalgamated.mm; amalgamated.cpp is
+	-- compiled as Objective-C++ on Apple targets via "-x objective-c++" above.
 	addProject_3rdParty_lib("bgfx", BGFX_FILES)
 end
 
