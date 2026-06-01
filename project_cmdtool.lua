@@ -26,6 +26,12 @@ function addProject_cmd(_name)
 		end
 
 		files		{ sourceFiles }
+
+		-- Windows resource scripts (e.g. VERSIONINFO) - compiled only for Windows targets.
+		configuration { "windows" }
+			files { os.matchfiles(projectPath .. "/src/**.rc") }
+		configuration {}
+
 		includedirs	{ rootPath, projectPath, path.join(rootPath, _name .. "/src") }
 
 		addPCH( projectPath, project().name )
