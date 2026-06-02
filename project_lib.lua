@@ -42,7 +42,12 @@ function addProject_lib(_name, _libType, _shared, _suffix, _disablePCH)
 		end			
 
 		files	{ sourceFiles }
-	
+
+		-- Windows resource scripts (e.g. VERSIONINFO) - compiled only for Windows targets.
+		configuration { "windows" }
+			files { os.matchfiles(srcFilesPath .. "/**.rc") }
+		configuration {}
+
 		local targetOS = getTargetOS()
 		if targetOS == "ios" or targetOS == "osx" then
 			files	{ srcFilesPath .. "/**.mm" }
