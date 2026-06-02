@@ -131,7 +131,10 @@ function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles,
 				end
 			end
 
-			defines { "QT_THREAD_SUPPORT", "QT_USE_QSTRINGBUILDER" }
+			-- QT_NO_DEPRECATED_WARNINGS silences C4996 emitted from Qt's own headers for APIs Qt
+			-- has marked deprecated-for-Qt7 (e.g. QGuiApplication/QApplication::compressEvent), which
+			-- would otherwise warn in every Qt translation unit on newer toolsets (VS2026).
+			defines { "QT_THREAD_SUPPORT", "QT_USE_QSTRINGBUILDER", "QT_NO_DEPRECATED_WARNINGS" }
 
 			includedirs	{ QT_PATH .. "/qtwinextras/include" }
 				
