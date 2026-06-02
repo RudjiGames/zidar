@@ -783,7 +783,11 @@ Every project is defined by registering global Lua functions. Below is a summary
 | `--with-windows=VERSION` | Windows SDK version |
 | `--with-dynamic-runtime` | Use dynamic runtime linking |
 | `--with-32bit-compiler` | Use 32-bit compiler |
+| `--with-sse` | Enable SSE instruction set |
+| `--with-sse2` | Enable SSE2 instruction set |
 | `--with-avx` | Enable AVX instruction set |
+| `--with-avx2` | Enable AVX2 instruction set |
+| `--with-ltcg` | Enable link time code generation (LTCG/LTO) for the retail configuration |
 | `--with-glfw` | Link GLFW libraries |
 | `--with-remove-crt` | Remove CRT from linking |
 

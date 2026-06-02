@@ -112,7 +112,11 @@ genie --zidar-path=/path/to/zidar xcode9      # Xcode project
 | `--with-windows=#` | Set Windows SDK version |
 | `--with-dynamic-runtime` | Link runtime dynamically instead of statically |
 | `--with-32bit-compiler` | Use 32-bit compiler instead of 64-bit |
+| `--with-sse` | Enable SSE SIMD extensions |
+| `--with-sse2` | Enable SSE2 SIMD extensions |
 | `--with-avx` | Enable AVX SIMD extensions |
+| `--with-avx2` | Enable AVX2 SIMD extensions |
+| `--with-ltcg` | Enable link time code generation (LTCG/LTO) for the retail configuration |
 | `--with-glfw` | Link GLFW libraries |
 | `--with-remove-crt` | Remove C Runtime from linking (bare-metal/kernel) |
 

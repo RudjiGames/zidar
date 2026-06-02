@@ -125,8 +125,28 @@ newoption {
 }
 
 newoption {
+	trigger     = "with-sse",
+	description = "Use SSE vector extension."
+}
+
+newoption {
+	trigger     = "with-sse2",
+	description = "Use SSE2 vector extension."
+}
+
+newoption {
 	trigger     = "with-avx",
-	description = "Use AVX extension."
+	description = "Use AVX vector extension."
+}
+
+newoption {
+	trigger     = "with-avx2",
+	description = "Use AVX2 vector extension."
+}
+
+newoption {
+	trigger     = "with-ltcg",
+	description = "Enable link time code generation (LTCG/LTO) for the retail configuration."
 }
 
 newoption {
@@ -697,8 +717,20 @@ function toolchain()
 		flags { "StaticRuntime" }
 	end
 
+	if _OPTIONS["with-sse"] then
+		flags { "EnableSSE" }
+	end
+
+	if _OPTIONS["with-sse2"] then
+		flags { "EnableSSE2" }
+	end
+
 	if _OPTIONS["with-avx"] then
 		flags { "EnableAVX" }
+	end
+
+	if _OPTIONS["with-avx2"] then
+		flags { "EnableAVX2" }
 	end
 
 	if (_OPTIONS["with-remove-crt"] ~= nil) then
@@ -777,8 +809,9 @@ function commonConfig(_platform, _configuration)
 	configuration { "linux*", _platform, _configuration }
 		defines { "RG_LINUX" }
 
-	configuration { "vs*", "not NX32", "not NX64", _platform, _configuration }
-		flags {	"EnableAVX" }
+	-- MSVC baseline is the universal x64 default (SSE2); SSE4.2 intrinsics remain
+	-- usable since MSVC has no /arch:SSE4.2 floor. Wider ISA targets (AVX/AVX2/...)
+	-- are opt-in via --with-avx / --with-avx2 so we don't SIGILL on older CPUs.
 
 	configuration { "vs2008", _platform, _configuration }
 		includedirs { RG_CORE_COMPAT_DIR .. "/msvc/pre1600" }
@@ -1396,6 +1429,20 @@ function commonConfig(_platform, _configuration)
 		configuration { "android*", _platform, _configuration }
 			kind "ConsoleApp"
 			targetextension ".so"
+	end
+
+	-- Link time code generation: opt-in via --with-ltcg, retail configuration only.
+	-- MSVC uses whole program optimization (/GL) plus /LTCG at link time, while the
+	-- GCC/Clang based toolchains use -flto for both compile and link steps.
+	if _OPTIONS["with-ltcg"] and _configuration == "retail" then
+
+		configuration { "vs*", "not orbis", "not prospero", _platform, _configuration }
+			buildoptions { "/GL" }
+			linkoptions  { "/LTCG" }
+
+		configuration { "linux-gcc* or linux-clang* or mingw-* or osx*", _platform, _configuration }
+			buildoptions { "-flto" }
+			linkoptions  { "-flto" }
 	end
 
 	configuration {}

@@ -151,7 +151,11 @@ Projects are defined through named callback functions. Zidar calls them automati
 | `--with-ios=VERSION` | iOS minimum deployment target |
 | `--with-macos=VERSION` | macOS minimum deployment target |
 | `--with-dynamic-runtime` | Use dynamic runtime linking |
+| `--with-sse` | Enable SSE instruction set |
+| `--with-sse2` | Enable SSE2 instruction set |
 | `--with-avx` | Enable AVX instruction set |
+| `--with-avx2` | Enable AVX2 instruction set |
+| `--with-ltcg` | Enable link time code generation (LTCG/LTO) for the retail configuration |
 
 ## Third-Party Libraries
 
