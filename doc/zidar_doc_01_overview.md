@@ -10,7 +10,7 @@ Zidar is a Lua-based build system framework built on top of [GENie](https://gith
 
 - **Convention over configuration** — projects follow a standard directory layout; zidar automatically discovers source files, public headers, and dependencies without verbose per-file listings
 - **Automatic dependency resolution** — recursive dependency discovery with transitive flattening, deduplication via hashing, and topological sorting for GNU Make; resolved results are cached for performance
-- **Cross-platform toolchain support** — 30+ platform/compiler combinations including Windows (MSVC 2017–2022, MinGW GCC/Clang), Linux (GCC, Clang, AFL variants), macOS/iOS/tvOS/visionOS (Xcode), Android NDK (arm, arm64, x86, x86_64), WebAssembly (Emscripten), FreeBSD, NetBSD, Raspberry Pi, RISC-V, and consoles (PlayStation 4/5, Xbox One, Nintendo Switch)
+- **Cross-platform toolchain support** — 30+ platform/compiler combinations including Windows (MSVC 2017–2026, MinGW GCC/Clang), Linux (GCC, Clang, AFL variants), macOS/iOS/tvOS/visionOS (Xcode), Android NDK (arm, arm64, x86, x86_64), WebAssembly (Emscripten), FreeBSD, NetBSD, Raspberry Pi, RISC-V, and consoles (PlayStation 4/5, Xbox One, Nintendo Switch)
 - **Qt 6 integration** — automatic MOC, UIC, RCC, and translation file processing with per-project file caching and automatic linking of Qt modules (Core, Gui, Widgets, Network, and custom modules)
 - **Embedded shader compilation** — bgfx shaderc integration for cross-compiling shaders to GLSL, SPIR-V, DirectX 9/11, and Metal as a prebuild step
 - **3rd party library management** — 63 pre-configured library scripts with automatic git cloning, building, and linking; libraries include bgfx, imgui, assimp, curl, zlib, box2d, jolt, spdlog, and many more
@@ -85,6 +85,7 @@ When zidar needs to find a project, it searches in this order:
 GENie generates native build files based on the action specified:
 
 ```bash
+genie --zidar-path=/path/to/zidar vs2026     # Visual Studio 2026 solution
 genie --zidar-path=/path/to/zidar vs2022     # Visual Studio 2022 solution
 genie --zidar-path=/path/to/zidar vs2019     # Visual Studio 2019 solution
 genie --zidar-path=/path/to/zidar gmake      # GNU Makefiles

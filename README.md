@@ -40,7 +40,7 @@ end
 
 - **Automatic dependency resolution** — recursively discovers, downloads (via git), and links project dependencies
 - **Cross-platform** — Windows, Linux, macOS, iOS, tvOS, visionOS, Android, WebAssembly, FreeBSD, NetBSD, RISC-V, Raspberry Pi
-- **Multiple toolchains** — Visual Studio 2017-2022, GCC, Clang, MinGW, Xcode, Android NDK, Emscripten
+- **Multiple toolchains** — Visual Studio 2017-2026, GCC, Clang, MinGW, Xcode, Android NDK, Emscripten
 - **Console support** — PlayStation 4/5 (Orbis/Prospero), Xbox One (Durango), Nintendo Switch
 - **Qt 6 integration** — automatic MOC, UIC, RCC, and translation file processing
 - **Shader compilation** — bgfx shader cross-compilation (GLSL, SPIR-V, DirectX 9/11, Metal) as a pre-build step
@@ -76,6 +76,7 @@ solution "my_app"
 **4.** Generate build files:
 
 ```bash
+genie --zidar-path=/path/to/zidar vs2026     # Visual Studio 2026
 genie --zidar-path=/path/to/zidar vs2022     # Visual Studio 2022
 genie --zidar-path=/path/to/zidar gmake      # GNU Makefiles
 genie --zidar-path=/path/to/zidar ninja      # Ninja

@@ -19,6 +19,7 @@ The `projgen` target generates projects for:
 
 | Target | Generator | Platform |
 |---|---|---|
+| `vs2026` | Visual Studio 2026 | Windows (MSVC) |
 | `vs2022` | Visual Studio 2022 | Windows (MSVC) |
 | `--gcc=linux-clang gmake` | GNU Makefiles | Linux (Clang) |
 | `--gcc=linux-gcc gmake` | GNU Makefiles | Linux (GCC) |

@@ -97,6 +97,9 @@ This file is what GENie executes. It does four things:
 From the `my_hello_world/scripts/` directory, run GENie with the desired build system:
 
 ```bash
+# Visual Studio 2026 (Windows)
+genie --zidar-path=/path/to/zidar vs2026
+
 # Visual Studio 2022 (Windows)
 genie --zidar-path=/path/to/zidar vs2022
 

@@ -640,7 +640,7 @@ function toolchain()
 		end -- gcc options
 	end -- gmake
 
-	if _ACTION == "vs2022" or _ACTION == "vs2019" or _ACTION == "vs2017" then
+	if _ACTION == "vs2026" or _ACTION == "vs2022" or _ACTION == "vs2019" or _ACTION == "vs2017" then
 
 		local action = premake.action.current()
 		if nil ~= windowsPlatform then

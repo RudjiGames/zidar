@@ -21,7 +21,7 @@ Zidar detects the compiler from GENie's `_ACTION` variable and the `--gcc`, `--v
 
 | Action | Compiler |
 |---|---|
-| `vs2017` - `vs2022` | MSVC |
+| `vs2017` - `vs2026` | MSVC |
 | `xcode*` | Apple Clang (Xcode) |
 | `gmake` with `--gcc=linux-gcc` | GCC |
 | `gmake` with `--gcc=linux-clang` | Clang |
