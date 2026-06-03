@@ -1515,5 +1515,45 @@ function setPlatforms()
 
 	if not toolchain() then
 		return -- no action specified
-	end 
+	end
+end
+
+-- Fix GENie's vs2026 .slnx writer: its slnx.configurations() emits a <Platform> for each platform but
+-- omits the <BuildType> entries, so custom solution configurations (notably "retail") never appear in
+-- Visual Studio. GENie loads its embedded actions before this script, so we override the function here to
+-- also emit a <BuildType Name="..."> per build configuration. The names must match the .vcxproj's
+-- <Configuration> values (lower-case: debug/release/retail). No post-generation patch required.
+if premake and premake.vstudio and premake.vstudio.slnx then
+	function premake.vstudio.slnx.configurations(sln)
+		local platforms  = {}
+		local buildtypes = {}
+		for _, cfg in ipairs(sln.vstudio_configs) do
+			local platform = cfg.platform
+			if platform == "Any CPU" or platform == "Mixed Platforms" then
+				platform = "Any CPU"
+			end
+			if not table.contains(platforms, platform) then
+				table.insert(platforms, platform)
+			end
+			if cfg.buildcfg and not table.contains(buildtypes, cfg.buildcfg) then
+				table.insert(buildtypes, cfg.buildcfg)	-- first-seen = declaration order (debug, release, retail)
+			end
+		end
+		for prj in premake.solution.eachproject(sln) do
+			if premake.isdotnetproject(prj) then
+				if not table.contains(platforms, "Any CPU") then
+					table.insert(platforms, "Any CPU")
+				end
+			end
+		end
+		table.sort(platforms)
+		_p('  <Configurations>')
+		for _, buildtype in ipairs(buildtypes) do
+			_p('    <BuildType Name="%s" />', buildtype)
+		end
+		for _, platform in ipairs(platforms) do
+			_p('    <Platform Name="%s" />', platform)
+		end
+		_p('  </Configurations>')
+	end
 end
