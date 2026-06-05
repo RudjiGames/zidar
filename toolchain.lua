@@ -1557,3 +1557,90 @@ if premake and premake.vstudio and premake.vstudio.slnx then
 		_p('  </Configurations>')
 	end
 end
+
+-- Fix GENie's vpaths handling: the ordered { { ["group"] = patterns }, ... } list form (premake5
+-- style) is silently dropped by premake.setkeyvalue()/table.insertflat() (the entries land under
+-- numeric keys and the key/value pairs are lost), so no virtual paths were ever registered and
+-- Visual Studio mirrored the directory tree relative to the solution root instead. GENie's own
+-- resolver is also order-blind - it collects all matching patterns and returns the alphabetically
+-- first result, which would file Qt generated headers ("**_ui.h") under "include". orderedVpaths()
+-- keeps declaration order and the premake.project.getvpath override below resolves first-match-wins.
+-- Patterns are matched against the path as stored and, when the project root directory can be
+-- resolved, against the path relative to it - so patterns like "src/**.h" refer to the project's
+-- own layout rather than the generated project location.
+local orderedVpathList = nil
+local projectRootCache = {}
+local genieGetVpath    = premake.project.getvpath
+
+function orderedVpaths(_vpaths)
+	orderedVpathList = _vpaths
+end
+
+-- Same matching/trimming rules as GENie's premake.project.getvpath, for a single pattern.
+local function vpathMatch(_replacement, _pattern, _path, _fname)
+	if _path:find(path.wildcards(_pattern)) ~= 1 then
+		return nil
+	end
+
+	-- Trim out the part of the path that matched before the first wildcard,
+	-- taking care to keep the actual file name intact.
+	local i = _pattern:find("*", 1, true) or (_pattern:len() + 1)
+	local leaf
+	if i < _path:len() - _fname:len() then
+		leaf = _path:sub(i)
+	else
+		leaf = _fname
+	end
+	if leaf:startswith("/") then
+		leaf = leaf:sub(2)
+	end
+
+	-- A replacement without stars is a flat group: keep just the file name.
+	local stem, stars = _replacement:gsub("%*", "")
+	if stars == 0 then
+		leaf = path.getname(leaf)
+	end
+
+	return path.join(stem, leaf)
+end
+
+function premake.project.getvpath(prj, abspath)
+	if orderedVpathList then
+		local fname = path.getname(abspath)
+
+		-- Candidate paths to match against; project-root-relative is preferred when available.
+		local candidates = { abspath }
+		if projectGetPath and prj.name and prj.location then
+			local root = projectRootCache[prj.name]
+			if root == nil then
+				root = projectGetPath(prj.name, true) or false -- memoize failures too
+				projectRootCache[prj.name] = root
+			end
+			if root then
+				local rel = path.getrelative(root, path.getabsolute(path.join(prj.location, abspath)))
+				if not rel:startswith("..") then
+					table.insert(candidates, 1, rel)
+				end
+			end
+		end
+
+		for _, entry in ipairs(orderedVpathList) do
+			for replacement, patterns in pairs(entry) do
+				if type(patterns) ~= "table" then
+					patterns = { patterns }
+				end
+				for _, pattern in ipairs(patterns) do
+					for _, candidate in ipairs(candidates) do
+						local vpath = vpathMatch(replacement, pattern, candidate, fname)
+						if vpath then
+							return path.trimdots(vpath)
+						end
+					end
+				end
+			end
+		end
+	end
+
+	-- no ordered match - fall back to GENie's resolver (per-project vpaths, default path)
+	return genieGetVpath(prj, abspath)
+end

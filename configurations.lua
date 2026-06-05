@@ -71,14 +71,19 @@ configuration {}
 -- Regenerate embedded-shader headers once per project (config/platform neutral).
 shaderConfigure(project().name)
 
-vpaths {
+-- IDE virtual paths, resolved first-match-wins (see orderedVpaths in toolchain.lua),
+-- so the specific patterns (Qt generated files, private headers in src/) must come
+-- before the "include"/"src" catch-alls.
+orderedVpaths {
 	{ ["shaders"]			= "**.sc" },
-	{ ["include"]			= { "**.h", "**.hpp", "**.hxx", "**.inl" } },
-	{ ["src"]				= { "**.c", "**.cc", "**.cxx", "**.cpp", "src/**.h", "src/**.hpp", "src/**.hxx", "src/**.inl" } },
 	{ ["qt/generated/ui"]	= "**_ui.h" },
 	{ ["qt/generated/moc"]	= "**_moc.cpp" },
 	{ ["qt/generated/qrc"]	= "**_qrc.cpp" },
+	{ ["qt/generated/qm"]	= "**.qm" },
 	{ ["qt/translation"]	= "**.ts" },
 	{ ["qt/forms"]			= "**.ui" },
-	{ ["qt/resources"]		= "**.qrc" }
+	{ ["qt/resources"]		= "**.qrc" },
+	{ ["src"]				= { "src/**.h", "src/**.hpp", "src/**.hxx", "src/**.inl" } },
+	{ ["include"]			= { "**.h", "**.hpp", "**.hxx", "**.inl" } },
+	{ ["src"]				= { "**.c", "**.cc", "**.cxx", "**.cpp", "**.m", "**.mm", "**.rc" } }
 }
