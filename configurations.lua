@@ -12,6 +12,7 @@ local QT_FILES_UI		= params[3] or {}
 local QT_FILES_QRC		= params[4] or {}
 local QT_FILES_TS		= params[5] or {}
 local QT_LIBS_TO_LINK	= params[6] or {}
+local QT_COPY_ONLY_DLLS	= params[7] or {}	-- runtime-only Qt DLLs: copied next to the exe but not linked
 local COPY_QT_DLLS		= WITH_QT
 local qtAddedFiles		= {}
 
@@ -35,7 +36,7 @@ local function setSubConfig(_platform, _configuration, _is64bit, _index)
 										QT_FILES_UI,
 										QT_FILES_QRC,
 										QT_FILES_TS,
-										QT_LIBS_TO_LINK, COPY_QT_DLLS, _is64bit, prefix, _index == 0)
+										QT_LIBS_TO_LINK, COPY_QT_DLLS, _is64bit, prefix, _index == 0, QT_COPY_ONLY_DLLS)
 		if _index == 0 then
 			qtAddedFiles = addedFiles
 		end

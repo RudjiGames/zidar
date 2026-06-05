@@ -48,7 +48,10 @@ local function getQtProjectFiles(_projectPath)
 	return mocFiles, uiFiles, qrcFiles, tsFiles
 end
 
-function addProject_qt(_name, _libraryType, _includes, _prebuildcmds, _extraQtModules)
+-- _extraQtModules : extra Qt modules to LINK (and copy the DLL for), beyond Core/Gui/Widgets/Network.
+-- _extraQtDlls    : extra Qt DLLs to COPY next to the exe but NOT link - transitive runtime dependencies
+--                   (e.g. Qt6OpenGL, loaded by Qt6OpenGLWidgets) that the app does not reference directly.
+function addProject_qt(_name, _libraryType, _includes, _prebuildcmds, _extraQtModules, _extraQtDlls)
 
 	if _libraryType ~= nil then
 		group ( vpathStringFromLibraryType(_libraryType) )
@@ -106,6 +109,6 @@ function addProject_qt(_name, _libraryType, _includes, _prebuildcmds, _extraQtMo
 		end
 
 		 -- true = isQtProject, adds extra defines and flags for qt projects
-		projectConfig(true, mocFiles, uiFiles, qrcFiles, tsFiles, libsToLink)
+		projectConfig(true, mocFiles, uiFiles, qrcFiles, tsFiles, libsToLink, _extraQtDlls)
 		addDependencies(project().name)
 end

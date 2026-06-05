@@ -7,7 +7,9 @@
 qt = {}
 qt.version = "6" -- default Qt version
 
-function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles, _tsfiles, _libsToLink, _copyDynamicLibraries, _is64bit, _dbgPrefix, _isFirstConfig )
+function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles, _tsfiles, _libsToLink, _copyDynamicLibraries, _is64bit, _dbgPrefix, _isFirstConfig, _copyOnlyDlls )
+
+	_copyOnlyDlls = _copyOnlyDlls or {}
 	 
 		local RG_QT_LIB_PREFIX		= "Qt" .. qt.version
 		local QT_PREBUILD_LUA_PATH	= 'lua "' .. path.getabsolute(RG_ZIDAR_DIR .. "/qtprebuild.lua") .. '"'
@@ -105,6 +107,19 @@ function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles,
 					local source = QT_PATH .. '/bin/' .. libname
 					local dest = destPath .. libname
 					os.mkdir(destPath .. "/platforms")
+					if not os.isfile(dest) then
+						os.copyfile( source, dest )
+					end
+				end
+
+				-- Runtime-only Qt DLLs: copied to the output but NOT linked. These are transitive runtime
+				-- dependencies (e.g. Qt6OpenGL, pulled in at load time by Qt6OpenGLWidgets) that the app does
+				-- not reference directly, so they must ship next to the exe but stay off the link line.
+				-- Passed in via addProject_qt's _extraQtDlls argument.
+				for _, lib in ipairs( _copyOnlyDlls ) do
+					local libname =  RG_QT_LIB_PREFIX .. lib  .. _dbgPrefix .. '.dll'
+					local source = QT_PATH .. '/bin/' .. libname
+					local dest = destPath .. libname
 					if not os.isfile(dest) then
 						os.copyfile( source, dest )
 					end
