@@ -240,6 +240,18 @@ if os.isfile(RG_ROOT_DIR .. "/genie.lua") then
 end
 RG_ZIDAR_BUILD_DIR = RG_ROOT_DIR .. "/.zidar" -- temp build files
 
+-- Product version: single source of truth is the repo-root VERSION file (bumped via
+-- scripts/SetVersion). Exposed so deploy/manifest steps can stamp the same value the
+-- binaries report. Absent file -> nil (zidar stays product-agnostic).
+RG_PRODUCT_VERSION = nil
+do
+	local vf = io.open(RG_ROOT_DIR .. "/VERSION", "r")
+	if vf then
+		RG_PRODUCT_VERSION = (vf:read("*l") or ""):gsub("%s+$", "")
+		vf:close()
+	end
+end
+
 -- strip trailing slash if present before adding for consistent path handling
 while string.sub(RG_ZIDAR_DIR, -1) == "/" or string.sub(RG_ZIDAR_DIR, -1) == "\\" do
 	RG_ZIDAR_DIR = string.sub(RG_ZIDAR_DIR, 1, -2)
