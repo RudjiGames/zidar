@@ -8,39 +8,45 @@
 -- options
 --------------------------------------------------------
 
-newoption {
-	trigger			= "with-unittests",
-	description		= "Generates library unit test projects"
-}
+newoption({
+	trigger = "with-unittests",
+	description = "Generates library unit test projects",
+})
 
-newoption {
-	trigger			= "with-tools",
-	description		= "Generates library tools projects"
-}
+newoption({
+	trigger = "with-tools",
+	description = "Generates library tools projects",
+})
 
-newoption {
-	trigger			= "with-samples",
-	description		= "Generates library sample projects"
-}
+newoption({
+	trigger = "with-samples",
+	description = "Generates library sample projects",
+})
 
-newoption {
-	trigger			= "with-no-pch",
-	description		= "Disables precompiled headers for all projects"
-}
+newoption({
+	trigger = "with-no-pch",
+	description = "Disables precompiled headers for all projects",
+})
 
-newoption {
-	trigger			= "zidar-path",
-	description		= "Path to zidar"
-}
+newoption({
+	trigger = "zidar-path",
+	description = "Path to zidar",
+})
 
 --------------------------------------------------------
 -- Text coloring
 --------------------------------------------------------
 
 Color = {
-	Black	= 30,	Red		= 31,	Green	= 32,	
-	Yellow	= 33,	Blue	= 34,	Magenta	= 35,	
-	Cyan	= 36,	White	= 37,	Default	= 39
+	Black = 30,
+	Red = 31,
+	Green = 32,
+	Yellow = 33,
+	Blue = 34,
+	Magenta = 35,
+	Cyan = 36,
+	White = 37,
+	Default = 39,
 }
 
 local _ansiCache = {}
@@ -50,7 +56,9 @@ function textColorANSI(_color, _background)
 	_background = _background or Color.Default
 	local key = _color * 256 + _background
 	local cached = _ansiCache[key]
-	if cached then return cached end
+	if cached then
+		return cached
+	end
 	local bgCode = (_background == Color.Default) and 49 or (_background + 70)
 	cached = "\x1b[1;" .. _color .. ";" .. bgCode .. "m"
 	_ansiCache[key] = cached
@@ -67,16 +75,22 @@ textColorANSI(Color.Default)
 
 -- Wraps a string with ANSI blink escape codes
 function textBlink(_string)
-	if _string then	return "\x1b[5m" .. _string .. "\x1b[25m" end 
+	if _string then
+		return "\x1b[5m" .. _string .. "\x1b[25m"
+	end
 	return nil
 end
 
 -- Returns a colored string with optional blink and background color
 local _ansiDefault = textColorANSI(Color.Default)
 function textColor(_string, _color, _background, _blink)
-	if not _string then print(debug.traceback()) end
+	if not _string then
+		print(debug.traceback())
+	end
 	local retText = textColorANSI(_color, _background) .. _string .. _ansiDefault
-	if _blink then return textBlink(retText) end
+	if _blink then
+		return textBlink(retText)
+	end
 	return retText
 end
 
@@ -97,7 +111,9 @@ end
 
 -- Prints a red error message and terminates the build
 function printError(_message, _exit)
-	if _exit == nil then _exit = false end
+	if _exit == nil then
+		_exit = false
+	end
 	print(textColor("ERROR:", Color.Red, nil, true) .. " " .. textColor(_message, Color.Yellow))
 	disableUTF8()
 	if _exit then
@@ -109,25 +125,25 @@ end
 -- Version info
 --------------------------------------------------------
 Version = {
-	High	= '1',
-	Low		= '0'
+	High = "1",
+	Low = "0",
 }
 
 -- is running on Windows (cached at load time)
-local _isWindows = package.config:sub(1, 1) == '\\'
+local _isWindows = package.config:sub(1, 1) == "\\"
 function isRunningOnWindows()
-    return _isWindows
+	return _isWindows
 end
 
-RG_CONSOLE_CODE_PAGE_DEFAULT	= 437	-- OEM code page (default for console input/output)
-RG_CONSOLE_CODE_PAGE_UTF8		= 65001	-- UTF-8
+RG_CONSOLE_CODE_PAGE_DEFAULT = 437 -- OEM code page (default for console input/output)
+RG_CONSOLE_CODE_PAGE_UTF8 = 65001 -- UTF-8
 
 if isRunningOnWindows() then
 	local output = os.outputof("chcp")
-	RG_CONSOLE_CODE_PAGE_DEFAULT = tonumber(string.match(output, '%d+'))
+	RG_CONSOLE_CODE_PAGE_DEFAULT = tonumber(string.match(output, "%d+"))
 end
 
-local _utfEnable  = "@chcp " .. tostring(RG_CONSOLE_CODE_PAGE_UTF8) .. " > nul"
+local _utfEnable = "@chcp " .. tostring(RG_CONSOLE_CODE_PAGE_UTF8) .. " > nul"
 local _utfDisable = "@chcp " .. tostring(RG_CONSOLE_CODE_PAGE_DEFAULT) .. " > nul"
 
 function enableUTF8()
@@ -175,13 +191,17 @@ if premake and premake.action and premake.action.call then
 end
 
 enableUTF8()
-print(	textColor("\xE2\x96\x91\xE2\x96\x92\xE2\x96\x93", Color.Green) .. " " ..
-		textColor("zidar", Color.Green) ..
-		textColor(" v" .. Version.High .. "." .. Version.Low, Color.Green) .. " " ..
-		textColor("\xE2\x96\x93\xE2\x96\x92\xE2\x96\x91", Color.Green) )
+print(
+	textColor("\xE2\x96\x91\xE2\x96\x92\xE2\x96\x93", Color.Green)
+		.. " "
+		.. textColor("zidar", Color.Green)
+		.. textColor(" v" .. Version.High .. "." .. Version.Low, Color.Green)
+		.. " "
+		.. textColor("\xE2\x96\x93\xE2\x96\x92\xE2\x96\x91", Color.Green)
+)
 
 atexit(function()
-    disableUTF8()
+	disableUTF8()
 end)
 
 --------------------------------------------------------
@@ -189,36 +209,36 @@ end)
 --------------------------------------------------------
 
 function script_path()
-   local str = debug.getinfo(2, "S").source:sub(2)
-   return str:match("(.*/)") or "./"
+	local str = debug.getinfo(2, "S").source:sub(2)
+	return str:match("(.*/)") or "./"
 end
 
 local function pathGetSeparator()
-  if isRunningOnWindows() then
-    return '\\'
-  end
-  return '/'
+	if isRunningOnWindows() then
+		return "\\"
+	end
+	return "/"
 end
 
-local function zidarPath()                                       
-  local str = debug.getinfo(2, 'S').source:sub(2)                  
-  if isRunningOnWindows() then                                                 
-    str = str:gsub('/', '\\')                                      
-  end                                                              
-  return str:match('(.*' .. pathGetSeparator() .. ')')           
+local function zidarPath()
+	local str = debug.getinfo(2, "S").source:sub(2)
+	if isRunningOnWindows() then
+		str = str:gsub("/", "\\")
+	end
+	return str:match("(.*" .. pathGetSeparator() .. ")")
 end
 
-RG_ZIDAR_HOME_DIR	= path.getabsolute(os.getenv("HOME") or os.getenv("HOMEPATH")) 	-- handle Windows and Unix home paths
-RG_SCRIPTS_DIR 		= path.getdirectory(script_path())								-- directory of this script
-RG_ROOT_DIR			= path.getabsolute(_WORKING_DIR)								-- project root
-RG_DEPENDENCY_DIR	= RG_ROOT_DIR .. "/.3rd"										-- For automatically downloaded 3rd party dependencies
-RG_LOCATION_PATH	= ""
-RG_ZIDAR_DIR		= zidarPath()
+RG_ZIDAR_HOME_DIR = path.getabsolute(os.getenv("HOME") or os.getenv("HOMEPATH")) -- handle Windows and Unix home paths
+RG_SCRIPTS_DIR = path.getdirectory(script_path()) -- directory of this script
+RG_ROOT_DIR = path.getabsolute(_WORKING_DIR) -- project root
+RG_DEPENDENCY_DIR = RG_ROOT_DIR .. "/.3rd" -- For automatically downloaded 3rd party dependencies
+RG_LOCATION_PATH = ""
+RG_ZIDAR_DIR = zidarPath()
 
 if os.isfile(RG_ROOT_DIR .. "/genie.lua") then
 	RG_ROOT_DIR = path.getabsolute(path.join(RG_ROOT_DIR, ".."))
 end
-RG_ZIDAR_BUILD_DIR	= RG_ROOT_DIR .. "/.zidar"										-- temp build files
+RG_ZIDAR_BUILD_DIR = RG_ROOT_DIR .. "/.zidar" -- temp build files
 
 -- strip trailing slash if present before adding for consistent path handling
 while string.sub(RG_ZIDAR_DIR, -1) == "/" or string.sub(RG_ZIDAR_DIR, -1) == "\\" do
@@ -230,33 +250,36 @@ print(textColor("\xE2\x96\xB6", Color.Green) .. textColor(" zidar path :", Color
 -- Load zidar scripts
 --------------------------------------------------------
 
-dofile (RG_SCRIPTS_DIR .. "/project_3rd.lua")
-dofile (RG_SCRIPTS_DIR .. "/project_cmdtool.lua")
-dofile (RG_SCRIPTS_DIR .. "/project_game.lua")
-dofile (RG_SCRIPTS_DIR .. "/project_lib.lua")
-dofile (RG_SCRIPTS_DIR .. "/project_lib_sample.lua")
-dofile (RG_SCRIPTS_DIR .. "/project_lib_test.lua")
-dofile (RG_SCRIPTS_DIR .. "/project_lib_tool.lua")
-dofile (RG_SCRIPTS_DIR .. "/project_qt.lua")
-dofile (RG_SCRIPTS_DIR .. "/embedded_files.lua")
-dofile (RG_SCRIPTS_DIR .. "/qtpresets6.lua")
+dofile(RG_SCRIPTS_DIR .. "/project_3rd.lua")
+dofile(RG_SCRIPTS_DIR .. "/project_cmdtool.lua")
+dofile(RG_SCRIPTS_DIR .. "/project_game.lua")
+dofile(RG_SCRIPTS_DIR .. "/project_lib.lua")
+dofile(RG_SCRIPTS_DIR .. "/project_lib_sample.lua")
+dofile(RG_SCRIPTS_DIR .. "/project_lib_test.lua")
+dofile(RG_SCRIPTS_DIR .. "/project_lib_tool.lua")
+dofile(RG_SCRIPTS_DIR .. "/project_qt.lua")
+dofile(RG_SCRIPTS_DIR .. "/embedded_files.lua")
+dofile(RG_SCRIPTS_DIR .. "/qtpresets6.lua")
 
-projectConfig			= assert(loadfile(RG_SCRIPTS_DIR .. "/configurations.lua"))
-projectSetupToolchain	= assert(loadfile(RG_SCRIPTS_DIR .. "/toolchain.lua"))
+projectConfig = assert(loadfile(RG_SCRIPTS_DIR .. "/configurations.lua"))
+projectSetupToolchain = assert(loadfile(RG_SCRIPTS_DIR .. "/toolchain.lua"))
 
 projectSetupToolchain()
 
 if os.getenv("RG_ZIDAR_DEPENDENCY_DIR") then
 	local envdir = path.getabsolute(os.getenv("RG_ZIDAR_DEPENDENCY_DIR"))
-	if (os.isdir(envdir)) then
+	if os.isdir(envdir) then
 		RG_DEPENDENCY_DIR = envdir
 	else
-		printError("Environment variable " .. 
-					textColor("RG_ZIDAR_DEPENDENCY_DIR", Color.Red) .. textColor(" is set to ", Color.Yellow) .. 
-					textColor(envdir, Color.Red) .. textColor(", but it is not a valid directory.", Color.Yellow))
-
-	end	
-end 
+		printError(
+			"Environment variable "
+				.. textColor("RG_ZIDAR_DEPENDENCY_DIR", Color.Red)
+				.. textColor(" is set to ", Color.Yellow)
+				.. textColor(envdir, Color.Red)
+				.. textColor(", but it is not a valid directory.", Color.Yellow)
+		)
+	end
+end
 
 local QT_PATH = os.getenv("QTDIR")
 if QT_PATH ~= nil then
@@ -273,7 +296,7 @@ if _ACTION == "clean" then
 	os.rmdir(RG_ZIDAR_BUILD_DIR)
 	if not os.getenv("RG_ZIDAR_DEPENDENCY_DIR") then
 		os.rmdir(RG_DEPENDENCY_DIR)
-	end 
+	end
 	os.exit()
 	return
 end
@@ -282,21 +305,21 @@ end
 -- compiler flags
 --------------------------------------------------------
 
-Flags_ThirdParty		= { "StaticRuntime", "NoEditAndContinue", "NoPCH",  "MinimumWarnings" }
-Flags_Libraries			= { "StaticRuntime", "NoEditAndContinue", "NoRTTI", "ExtraWarnings", "NoExceptions" }
-Flags_Tests				= { "StaticRuntime", "NoEditAndContinue", "NoRTTI", "ExtraWarnings" }
-Flags_Cmd				= { "StaticRuntime", "NoEditAndContinue", "NoRTTI", "ExtraWarnings", "NoExceptions" }
-Flags_QtTool			= { "StaticRuntime", "NoEditAndContinue", "NoRTTI", "ExtraWarnings" }
+Flags_ThirdParty = { "StaticRuntime", "NoEditAndContinue", "NoPCH", "MinimumWarnings" }
+Flags_Libraries = { "StaticRuntime", "NoEditAndContinue", "NoRTTI", "ExtraWarnings", "NoExceptions" }
+Flags_Tests = { "StaticRuntime", "NoEditAndContinue", "NoRTTI", "ExtraWarnings" }
+Flags_Cmd = { "StaticRuntime", "NoEditAndContinue", "NoRTTI", "ExtraWarnings", "NoExceptions" }
+Flags_QtTool = { "StaticRuntime", "NoEditAndContinue", "NoRTTI", "ExtraWarnings" }
 
 ExtraFlags = {}
-ExtraFlags["debug"]		= { "Symbols" }
-ExtraFlags["release"]	= { "NoFramePointer", "OptimizeSpeed", "NoBufferSecurityCheck", "Symbols" }
-ExtraFlags["retail"]	= { "NoFramePointer", "OptimizeSpeed", "NoBufferSecurityCheck" }
+ExtraFlags["debug"] = { "Symbols" }
+ExtraFlags["release"] = { "NoFramePointer", "OptimizeSpeed", "NoBufferSecurityCheck", "Symbols" }
+ExtraFlags["retail"] = { "NoFramePointer", "OptimizeSpeed", "NoBufferSecurityCheck", "Symbols" }
 
 ExtraDefines = {}
-ExtraDefines["debug"]   = { "RG_DEBUG_BUILD", "_DEBUG", "DEBUG" }
+ExtraDefines["debug"] = { "RG_DEBUG_BUILD", "_DEBUG", "DEBUG" }
 ExtraDefines["release"] = { "RG_RELEASE_BUILD", "NDEBUG" }
-ExtraDefines["retail"]	= { "RG_RETAIL_BUILD", "NDEBUG", "RETAIL" }
+ExtraDefines["retail"] = { "RG_RETAIL_BUILD", "NDEBUG", "RETAIL" }
 
 --------------------------------------------------------
 -- utility functions to check for target compiler
@@ -318,13 +341,12 @@ end
 
 -- Configures precompiled header for a project if PCH files exist
 function addPCH(_path, _name)
-
 	if _OPTIONS["with-no-pch"] ~= nil then
 		return
 	end
 
-	 -- do not use PCH on macOS as it causes issues with Xcode
-	if os.is("macosx") then 
+	-- do not use PCH on macOS as it causes issues with Xcode
+	if os.is("macosx") then
 		return
 	end
 
@@ -332,26 +354,26 @@ function addPCH(_path, _name)
 	local fullPath = path.getabsolute(path.join(_path, name))
 
 	-- called once per project, no need to cache results
-	if os.isfile(fullPath  .. "_pch.h") then
+	if os.isfile(fullPath .. "_pch.h") then
 		if not actionUsesMSVC() then
-			pchheader (fullPath  .. "_pch.h")
+			pchheader(fullPath .. "_pch.h")
 		else
-			pchheader (name  .. "_pch.h")
+			pchheader(name .. "_pch.h")
 		end
 	else
-		printWarning("PCH header file for " .. textColor(name, Color.Cyan) .. " project not found: ".. textColor(fullPath  .. "_pch.h", Color.Blue) )
+		printWarning("PCH header file for " .. textColor(name, Color.Cyan) .. " project not found: " .. textColor(fullPath .. "_pch.h", Color.Blue))
 		return
 	end
 
 	local PCHSourceFound = false
 	if os.isfile(fullPath .. "_pch.cpp") then
 		PCHSourceFound = true
-		pchsource (fullPath .. "_pch.cpp")
+		pchsource(fullPath .. "_pch.cpp")
 	end
 
-	if not PCHSourceFound and os.isfile(fullPath .. "_pch.c") then  -- support C projects as well
+	if not PCHSourceFound and os.isfile(fullPath .. "_pch.c") then -- support C projects as well
 		PCHSourceFound = true
-		pchsource (fullPath .. "_pch.c")
+		pchsource(fullPath .. "_pch.c")
 	end
 
 	if not PCHSourceFound then
@@ -364,9 +386,9 @@ end
 --------------------------------------------------------
 
 LibraryType = {
-	Runtime	= {},
-	Tool	= {},
-	Game	= {}
+	Runtime = {},
+	Tool = {},
+	Game = {},
 }
 
 function vpathStringFromLibraryType(_libType)
@@ -382,9 +404,8 @@ end
 --------------------------------------------------------
 -- Load 3rd party zidar script names
 --------------------------------------------------------
-RG_3RD_PARTY_SCRIPTS		= {}
-RG_3RD_PARTY_SCRIPTS_LOADED	= {}
-
+RG_3RD_PARTY_SCRIPTS = {}
+RG_3RD_PARTY_SCRIPTS_LOADED = {}
 
 local rdPartyFiles = os.matchfiles(RG_SCRIPTS_DIR .. "/3rd/*.lua")
 for _, file in ipairs(rdPartyFiles) do
@@ -398,22 +419,22 @@ end
 
 -- Merges any number of tables into one, removing duplicates
 function mergeTables(...)
-    local result = {}
-    local hash = {}
-    local n = 0
-    for i = 1, select('#', ...) do
-        local t = select(i, ...)
-        if t then
-            for _,v in ipairs(t) do
-                if not hash[v] then
-                    n = n + 1
-                    result[n] = v
-                    hash[v] = true
-                end
-            end
-        end
-    end
-    return result
+	local result = {}
+	local hash = {}
+	local n = 0
+	for i = 1, select("#", ...) do
+		local t = select(i, ...)
+		if t then
+			for _, v in ipairs(t) do
+				if not hash[v] then
+					n = n + 1
+					result[n] = v
+					hash[v] = true
+				end
+			end
+		end
+	end
+	return result
 end
 
 -- Merges two tables into one, removing duplicates. Kept as a named convenience
@@ -431,13 +452,18 @@ local _pathEnv = os.getenv("PATH") or ""
 function checkPrerequisite(_toolName)
 	local exeName = isRunningOnWindows() and (_toolName .. ".exe") or _toolName
 	if not os.pathsearch(exeName, _pathEnv) then
-		printError(textColor(_toolName, Color.Cyan) .. " is required to build the project. Please install " .. textColor(_toolName, Color.Cyan) .. " and make sure it's in your PATH.")
+		printError(
+			textColor(_toolName, Color.Cyan)
+				.. " is required to build the project. Please install "
+				.. textColor(_toolName, Color.Cyan)
+				.. " and make sure it's in your PATH."
+		)
 	end
 end
 
-checkPrerequisite( "git" )
+checkPrerequisite("git")
 if isRunningOnWindows() then
-	checkPrerequisite( "sed" )
+	checkPrerequisite("sed")
 end
 
 --------------------------------------------------------
@@ -445,8 +471,8 @@ end
 --------------------------------------------------------
 printInfo(textColor("\xE2\x96\xB6", Color.Green) .. textColor(" Loading scripts and generating projects...", Color.Cyan))
 
-g_projectIsAdded	= {}
-g_fileIsLoaded		= {}
+g_projectIsAdded = {}
+g_fileIsLoaded = {}
 g_projectScriptIsLoaded = {}
 
 -- Returns true if the variable is a table
@@ -454,33 +480,34 @@ function isTable(_var)
 	return type(_var) == "table"
 end
 
-
 -- Builds a standard source file pattern table for a given path with optional include path
 function projectSourceFilesWildcard(...)
 	local files = {}
-    for i = 1, select('#', ...) do
-        local p = select(i, ...)
-        if p then
+	for i = 1, select("#", ...) do
+		local p = select(i, ...)
+		if p then
 			-- ensure trailing slash for glob pattern
-			if string.sub(p, -1) ~= "/" then p = p .. "/" end
-			files[#files+1] = p .. "**.c"
-			files[#files+1] = p .. "**.cpp"
-			files[#files+1] = p .. "**.cxx"
-			files[#files+1] = p .. "**.cc"
-			files[#files+1] = p .. "**.h"
-			files[#files+1] = p .. "**.hpp"
-			files[#files+1] = p .. "**.hxx"
-			files[#files+1] = p .. "**.inl"
-        end
-    end
-    return files
+			if string.sub(p, -1) ~= "/" then
+				p = p .. "/"
+			end
+			files[#files + 1] = p .. "**.c"
+			files[#files + 1] = p .. "**.cpp"
+			files[#files + 1] = p .. "**.cxx"
+			files[#files + 1] = p .. "**.cc"
+			files[#files + 1] = p .. "**.h"
+			files[#files + 1] = p .. "**.hpp"
+			files[#files + 1] = p .. "**.hxx"
+			files[#files + 1] = p .. "**.inl"
+		end
+	end
+	return files
 end
 
 local _projectIsCPPCache = {}
 local _projectIsCPPExtensions = {
 	[".cpp"] = true,
 	[".cxx"] = true,
-	[".cc"]  = true,
+	[".cc"] = true,
 	[".hpp"] = true,
 	[".hxx"] = true,
 }
@@ -570,15 +597,15 @@ function projectNameCleanup(_projectName)
 	return result
 end
 
-local g_projectPathCache		= {}
-local g_projectPathScriptCache	= {}
-local _pathAbsoluteCache		= {}
-local _pathIsDirCache			= {}
-local _pathIsFileCache			= {}
-local _dirChildrenCache			= {}
-local _dirChildrenByNameCache	= {}
-local _scriptSearchCache		= {}
-local _scriptSearchSubdirs		= { "scripts/", "zidar/", "genie/", "build/" }
+local g_projectPathCache = {}
+local g_projectPathScriptCache = {}
+local _pathAbsoluteCache = {}
+local _pathIsDirCache = {}
+local _pathIsFileCache = {}
+local _dirChildrenCache = {}
+local _dirChildrenByNameCache = {}
+local _scriptSearchCache = {}
+local _scriptSearchSubdirs = { "scripts/", "zidar/", "genie/", "build/" }
 
 local function pathGetAbsoluteCached(_path, _force)
 	local cached = _pathAbsoluteCache[_path]
@@ -628,17 +655,17 @@ local function getChildDirsCached(_dir)
 	local byName = {}
 	local dirs = {}
 	local seen = {}
-	for _,sub in ipairs(os.matchdirs(absDir .. "/*")) do
-			local absSub = pathGetAbsoluteCached(sub)
-			if not seen[absSub] then
-				seen[absSub] = true
-				dirs[#dirs + 1] = absSub
-				local baseName = path.getbasename(absSub)
-				if byName[baseName] == nil then
-					byName[baseName] = absSub
-				end
+	for _, sub in ipairs(os.matchdirs(absDir .. "/*")) do
+		local absSub = pathGetAbsoluteCached(sub)
+		if not seen[absSub] then
+			seen[absSub] = true
+			dirs[#dirs + 1] = absSub
+			local baseName = path.getbasename(absSub)
+			if byName[baseName] == nil then
+				byName[baseName] = absSub
 			end
 		end
+	end
 
 	_dirChildrenByNameCache[absDir] = byName
 	_dirChildrenCache[absDir] = dirs
@@ -707,7 +734,7 @@ local function findScriptInDirCached(_dir, _depth, _maxDepth, _scriptName)
 		return cached ~= false and cached or nil
 	end
 
-	if string.find(absDir, "/zidar/3rd", 1, true) then -- exclude 3rd party 
+	if string.find(absDir, "/zidar/3rd", 1, true) then -- exclude 3rd party
 		_scriptSearchCache[cacheKey] = false
 		return nil
 	end
@@ -772,7 +799,7 @@ function projectInstall3rdPartyLib(_name)
 		end
 	else
 		printError("No link to download source code of missing dependency found: " .. name)
-	end	
+	end
 	return false
 end
 
@@ -789,7 +816,9 @@ function projectAddPathToCache(_name, _path)
 	local name = projectGetBaseName(_name)
 	if g_projectPathCache[name] then
 		if g_projectPathCache[name] ~= _path then
-			printError("Project path cache conflict for project " .. name .. " - already have path: " .. g_projectPathCache[name] .. ", new path: " .. _path)
+			printError(
+				"Project path cache conflict for project " .. name .. " - already have path: " .. g_projectPathCache[name] .. ", new path: " .. _path
+			)
 		end
 		return
 	end
@@ -805,12 +834,11 @@ function projectGetPath(_name, _canFail)
 	end
 
 	local function isValidProjectDir(dir)
-		return pathIsFileCached(path.join(dir, "scripts/genie.lua"))
-			or pathIsFileCached(path.join(dir, "genie/genie.lua"))
+		return pathIsFileCached(path.join(dir, "scripts/genie.lua")) or pathIsFileCached(path.join(dir, "genie/genie.lua"))
 	end
 
-	local searchDir	= pathGetAbsoluteCached(_WORKING_DIR)
-	local result	= nil
+	local searchDir = pathGetAbsoluteCached(_WORKING_DIR)
+	local result = nil
 
 	-- deep search walking up parent directories
 	while not result do
@@ -866,7 +894,6 @@ RG_CORE_COMPAT_DIR = path.join(projectGetPath("rg_core", true), "include/compat"
 
 -- Locates the build script (.lua) for a project by searching known directories
 function projectGetScriptPath(_name, _requester)
-	
 	local name = projectGetBaseName(_name)
 
 	if g_projectPathScriptCache[name] ~= nil then
@@ -900,7 +927,9 @@ function projectGetScriptPath(_name, _requester)
 	local searchDir = pathGetAbsoluteCached(_WORKING_DIR)
 	while not pathIsRootPath(searchDir) do
 		local upDir = pathGetAbsoluteCached(path.join(searchDir, ".."))
-		if upDir == searchDir then break end
+		if upDir == searchDir then
+			break
+		end
 
 		local upResult = findScriptInDirCached(upDir, 0, depthToSearch, scriptName)
 		if upResult then
@@ -958,19 +987,25 @@ end
 -- Returns the public header directory for a project ("include" or "inc"), or nil if neither exists
 function projectGetIncludePath(_projectPath)
 	local inclPath = _projectPath .. "/include"
-	if pathIsDirCached(inclPath) then return inclPath end
+	if pathIsDirCached(inclPath) then
+		return inclPath
+	end
 	local incPath = _projectPath .. "/inc"
-	if pathIsDirCached(incPath) then return incPath end
+	if pathIsDirCached(incPath) then
+		return incPath
+	end
 	return nil
 end
 
 -- Adds a directory to the include path if it exists
 function addIncludePath(_name, _path)
 	assert(_path ~= nil)
-	if string.len(_path) == 0 then return end
+	if string.len(_path) == 0 then
+		return
+	end
 
-	if pathIsDirCached(_path) then 
-		includedirs { _path } 
+	if pathIsDirCached(_path) then
+		includedirs({ _path })
 	end
 end
 
@@ -979,10 +1014,14 @@ function addIncludePaths(_name, _projectName)
 	local basename = projectGetBaseName(_projectName)
 
 	local projectDir = projectGetPath(_projectName)
-	if projectDir == nil then return end
+	if projectDir == nil then
+		return
+	end
 
 	local projectParentDir = pathGetAbsoluteCached(path.join(projectDir, "../"))
-	if projectParentDir == nil then return false end
+	if projectParentDir == nil then
+		return false
+	end
 
 	-- search for it..
 	addIncludePath(_name, projectParentDir)
@@ -1007,15 +1046,23 @@ function projectAdd(_name)
 			-- directly makes GENie emit "-l<dir-basename>" (e.g.
 			-- "-lx86_64-linux-gnu"), which the linker can't resolve. Link the
 			-- library by its name instead and add the directory as a search path.
-			printWarning("Project " .. textColor(name, Color.Cyan) .. " not found, but found OS library: " .. textColor(_name, Color.Yellow) .. " in " .. textColor(oslibdir, Color.Yellow) .. ". Linking against it instead.")
+			printWarning(
+				"Project "
+					.. textColor(name, Color.Cyan)
+					.. " not found, but found OS library: "
+					.. textColor(_name, Color.Yellow)
+					.. " in "
+					.. textColor(oslibdir, Color.Yellow)
+					.. ". Linking against it instead."
+			)
 			if type(oslibdir) == "string" and #oslibdir > 0 then
-				libdirs { oslibdir }
+				libdirs({ oslibdir })
 			end
-			links { _name }
+			links({ _name })
 			return
 		end
 		local dependencies = projectGetDependencies(name)
-		for _,dependency in ipairs(dependencies) do
+		for _, dependency in ipairs(dependencies) do
 			projectAdd(dependency)
 		end
 
@@ -1023,7 +1070,9 @@ function projectAdd(_name)
 			_G["projectAdd_" .. name]()
 			g_projectIsAdded[name] = true
 		else
-			printWarning("Project " .. textColor(name, Color.Cyan) .. " being added, but no add function found. Forgotten to load the project script?")
+			printWarning(
+				"Project " .. textColor(name, Color.Cyan) .. " being added, but no add function found. Forgotten to load the project script?"
+			)
 		end
 	end
 end
@@ -1043,9 +1092,8 @@ end
 
 --
 function projectLoad(_projectName, _loadAndAdd)
-	local scriptPath, 
-	      projectPath	= projectGetPaths(_projectName) -- this will load the project script and cache the path, if not already cached
-	local name			= projectGetBaseName(_projectName)
+	local scriptPath, projectPath = projectGetPaths(_projectName) -- this will load the project script and cache the path, if not already cached
+	local name = projectGetBaseName(_projectName)
 
 	g_projectScriptIsLoaded[name] = true
 
@@ -1057,11 +1105,15 @@ function projectLoad(_projectName, _loadAndAdd)
 				if not pathIsDirCached(projectPath) then
 					if not projectInstall3rdPartyLib(_projectName) then
 						printError("Could not find or download dependency - " .. _projectName)
-					end					
+					end
 				end
 
 				if _G["projectAdd_" .. name] == nil then -- prebuilt libs have no projects
-					printWarning("Project " .. textColor(name, Color.Cyan) .. " loaded, but no add function found. This may be a prebuilt library, if so this message can be ignored.")
+					printWarning(
+						"Project "
+							.. textColor(name, Color.Cyan)
+							.. " loaded, but no add function found. This may be a prebuilt library, if so this message can be ignored."
+					)
 				end
 
 				-- default to true/add
@@ -1080,7 +1132,7 @@ end
 local function projectLoadIfNeeded(_projectName, _loadAndAdd)
 	local name = projectGetBaseName(_projectName)
 	if g_projectScriptIsLoaded[name] then
-		return  
+		return
 	end
 	projectLoad(_projectName, _loadAndAdd)
 end
@@ -1089,7 +1141,7 @@ local g_subDependenciesCount = {}
 local g_resolvedDependencies = {}
 
 --
-function sortDependencies(a,b)
+function sortDependencies(a, b)
 	local countA = g_subDependenciesCount[a] or 0
 	local countB = g_subDependenciesCount[b] or 0
 	return countA > countB
@@ -1098,7 +1150,7 @@ end
 --
 function projectGetDependencies(_name, _additionalDeps)
 	local fullName = projectNameCleanup(_name)
-   
+
 	-- use cached result when no additional deps are supplied
 	local hasAdditionalDeps = _additionalDeps ~= nil and #_additionalDeps > 0
 	if not hasAdditionalDeps and g_resolvedDependencies[_name] then
@@ -1107,12 +1159,12 @@ function projectGetDependencies(_name, _additionalDeps)
 	end
 
 	local dependenciesHashed = {}
-	local dependencies		 = {}
-	local scriptDeps		 = {}
+	local dependencies = {}
+	local scriptDeps = {}
 
 	if _G["projectDependencies_" .. fullName] then
 		scriptDeps = _G["projectDependencies_" .. fullName]()
-		for _,dep in ipairs(scriptDeps) do
+		for _, dep in ipairs(scriptDeps) do
 			if not dependenciesHashed[dep] then
 				dependencies[#dependencies + 1] = dep
 				dependenciesHashed[dep] = true
@@ -1120,25 +1172,25 @@ function projectGetDependencies(_name, _additionalDeps)
 		end
 	end
 
-	_additionalDeps	= _additionalDeps or {}
-	for _,dep in ipairs(_additionalDeps) do
+	_additionalDeps = _additionalDeps or {}
+	for _, dep in ipairs(_additionalDeps) do
 		if not dependenciesHashed[dep] then
 			dependencies[#dependencies + 1] = dep
 			dependenciesHashed[dep] = true
 		end
 	end
 
-	for _,dep in ipairs(_additionalDeps) do
-	    projectLoadIfNeeded(dep, false)
+	for _, dep in ipairs(_additionalDeps) do
+		projectLoadIfNeeded(dep, false)
 	end
 
-	for _,dependency in ipairs(scriptDeps) do
+	for _, dependency in ipairs(scriptDeps) do
 		projectLoadIfNeeded(dependency, false) -- do not add
 	end
 
-	for _,d in ipairs(dependencies) do
+	for _, d in ipairs(dependencies) do
 		local depNested = projectGetDependencies(d)
-		for _,dep in ipairs(depNested) do
+		for _, dep in ipairs(depNested) do
 			if not dependenciesHashed[dep] then
 				dependencies[#dependencies + 1] = dep
 				dependenciesHashed[dep] = true
@@ -1147,7 +1199,7 @@ function projectGetDependencies(_name, _additionalDeps)
 	end
 
 	if _ACTION == "gmake" then
-		for _,dep in ipairs(dependencies) do
+		for _, dep in ipairs(dependencies) do
 			if not g_subDependenciesCount[dep] then
 				projectGetDependencies(dep)
 			end
@@ -1155,7 +1207,7 @@ function projectGetDependencies(_name, _additionalDeps)
 		table.sort(dependencies, sortDependencies)
 	end
 
-	for _,dependency in ipairs(dependencies) do
+	for _, dependency in ipairs(dependencies) do
 		configDependency(dependency)
 	end
 
@@ -1163,7 +1215,7 @@ function projectGetDependencies(_name, _additionalDeps)
 		g_resolvedDependencies[_name] = dependencies
 	end
 
-	g_subDependenciesCount[_name]		= #dependencies
+	g_subDependenciesCount[_name] = #dependencies
 	return dependencies
 end
 
@@ -1187,7 +1239,7 @@ function addDependencies(_name, _additionalDeps)
 		-- dependencies), which would change the active project out from under
 		-- the links/includedirs below. Doing it as a separate pass keeps those
 		-- settings attached to _name's project regardless of what gets added.
-		for _,dependency in ipairs(dependencies) do
+		for _, dependency in ipairs(dependencies) do
 			if dependency ~= nil then
 				local depName = projectNameCleanup(dependency)
 				if g_projectIsAdded[depName] == nil then
@@ -1199,8 +1251,8 @@ function addDependencies(_name, _additionalDeps)
 		-- Re-activate this project and emit its include paths / links. By now
 		-- the active project may be some dependency created above, so reselect.
 		project(_name)
-		configuration {}
-		for _,dependency in ipairs(dependencies) do
+		configuration({})
+		for _, dependency in ipairs(dependencies) do
 			if dependency ~= nil then
 				local depName = projectNameCleanup(dependency)
 
@@ -1214,7 +1266,7 @@ function addDependencies(_name, _additionalDeps)
 				configDependency(dependency)
 
 				if _G["projectHeaderOnlyLib_" .. depName] == nil then
-					links { depName }
+					links({ depName })
 				end
 			end
 		end
@@ -1223,16 +1275,19 @@ end
 
 --
 function addLibSubProjects_samples(_name)
-
 	local name = projectNameCleanup(_name)
-	if isTable(_name) then return end
+	if isTable(_name) then
+		return
+	end
 
 	g_projectIsAdded[name] = true
 	local projectDir = projectGetPath(_name)
-	if projectDir == nil then return end
+	if projectDir == nil then
+		return
+	end
 	local samplesDir = projectDir .. "/samples/"
-	local sampleDirs = os.matchdirs(samplesDir .. "*") 
-	for _,dir in ipairs(sampleDirs) do
+	local sampleDirs = os.matchdirs(samplesDir .. "*")
+	for _, dir in ipairs(sampleDirs) do
 		local dirName = path.getbasename(dir)
 		addProject_lib_sample(_name, dirName) -- registers its own path in the cache
 	end
@@ -1240,13 +1295,16 @@ end
 
 --
 function addLibSubProjects_unittests(_name)
-
 	local name = projectNameCleanup(_name)
-	if isTable(_name) then return end
+	if isTable(_name) then
+		return
+	end
 
 	g_projectIsAdded[name] = true
 	local projectDir = projectGetPath(_name)
-	if projectDir == nil then return end
+	if projectDir == nil then
+		return
+	end
 
 	local testDir = projectDir .. "/tests/"
 	if pathIsDirCached(testDir) then
@@ -1257,16 +1315,19 @@ end
 
 --
 function addLibSubProjects_tools(_name)
-
 	local name = projectNameCleanup(_name)
-	if isTable(_name) then return end
+	if isTable(_name) then
+		return
+	end
 
 	g_projectIsAdded[name] = true
 	local projectDir = projectGetPath(_name)
-	if projectDir == nil then return end
+	if projectDir == nil then
+		return
+	end
 
-	local toolsDirs = os.matchdirs(projectDir .. "/tools/*") 
-	for _,dir in ipairs(toolsDirs) do
+	local toolsDirs = os.matchdirs(projectDir .. "/tools/*")
+	for _, dir in ipairs(toolsDirs) do
 		local dirName = path.getbasename(dir)
 		projectAddPathToCache(_name .. "_" .. dirName, dir)
 		addProject_lib_tool(_name, dirName)
@@ -1275,7 +1336,6 @@ end
 
 --
 function addLibProjects(_name)
-
 	projectLoad(_name)
 	local shouldAddLibProjects = _name == solution().name
 
@@ -1290,16 +1350,14 @@ function addLibProjects(_name)
 		addLibSubProjects_samples(_name)
 	end
 
-
 	-- adding library tools always, if requested
-	if (_OPTIONS["with-tools"] ~= nil) then
+	if _OPTIONS["with-tools"] ~= nil then
 		addLibSubProjects_tools(_name)
 	end
 end
 
 --
 function getToolForHost(_name)
-
 	local projectDir = projectGetPath("zidar")
 
 	if not projectDir then
@@ -1328,9 +1386,11 @@ end
 
 -- read file contents
 function fileRead(_file)
-    local f = io.open(_file, "r")
-	if f == nil then return "" end
-    local content = f:read("*all")
-    f:close()
-    return content
+	local f = io.open(_file, "r")
+	if f == nil then
+		return ""
+	end
+	local content = f:read("*all")
+	f:close()
+	return content
 end
