@@ -128,6 +128,11 @@ function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles,
 				local otherDLLs = {
 					{ name = "platforms\\qwindows" .. _dbgPrefix, srcPrefix = "/plugins/" },
 					{ name = "platforms\\qminimal" .. _dbgPrefix, srcPrefix = "/plugins/" },
+					-- SVG plugins: QIcon(":/...svg") needs the ICON ENGINE (iconengines/qsvgicon) and QImage/QPixmap
+					-- svg loading needs the IMAGE FORMAT (imageformats/qsvg). Qt6Svg.dll alone is NOT enough - without
+					-- qsvgicon every .svg QIcon is silently null (toolbar buttons/docks lose their icons).
+					{ name = "iconengines\\qsvgicon" .. _dbgPrefix, srcPrefix = "/plugins/" },
+					{ name = "imageformats\\qsvg" .. _dbgPrefix, srcPrefix = "/plugins/" },
 				}
 
 				if _ACTION:find("gmake") then
