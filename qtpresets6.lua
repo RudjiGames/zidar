@@ -102,11 +102,18 @@ function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles,
 				local destPath = binDir
 				destPath = string.gsub( destPath, "([/]+)", "\\" ) .. '\\bin\\'
 
+				-- The "platforms" plugin dir is invariant of lib, so create it once before the copy loop
+				-- (guarded by a non-empty lib list to match the original loop-body semantics: the dir was
+				-- only ever created when at least one iteration ran) instead of re-issuing an idempotent
+				-- mkdir syscall for every linked Qt library.
+				if #_libsToLink > 0 then
+					os.mkdir(destPath .. "/platforms")
+				end
+
 				for _, lib in ipairs( _libsToLink ) do
 					local libname =  RG_QT_LIB_PREFIX .. lib  .. _dbgPrefix .. '.dll'
 					local source = QT_PATH .. '/bin/' .. libname
 					local dest = destPath .. libname
-					os.mkdir(destPath .. "/platforms")
 					if not os.isfile(dest) then
 						os.copyfile( source, dest )
 					end
