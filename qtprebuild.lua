@@ -231,10 +231,18 @@ if outputDir ~= "" then
 	mkdir( outputDir )
 end
 
--- All four tool modes generate arg[2] -> outputFilePath and share the SAME up-to-date test (mode = arg[1]). Run it
--- ONCE here and bail silently when nothing changed, so an up-to-date rebuild no longer prints a "Generating <type>
--- for ..." line for every file it then immediately skips (the per-branch checks below were AFTER their print).
-if file_is_upToDate(arg[2], outputFilePath, arg[1]) then
+-- All four tool modes generate arg[2] and share the SAME up-to-date test (mode = arg[1]). Run it ONCE here and bail
+-- silently when nothing changed, so an up-to-date rebuild no longer prints a "Generating <type> for ..." line for
+-- every file it then immediately skips (the per-branch checks below were AFTER their print).
+--
+-- -ts is special: lrelease derives the output .qm from the .ts name (its command has no -o) and writes it NEXT TO the
+-- .ts, so outputFilePath (a separate generated-files path, passed but UNUSED by the lrelease command) is not the file
+-- that actually gets written. Check the real .ts->.qm sibling, otherwise every .ts re-ran lrelease on every build.
+local upToDateOutput = outputFilePath
+if arg[1] == "-ts" then
+	upToDateOutput = (string.gsub(arg[2], "%.ts$", ".qm"))
+end
+if file_is_upToDate(arg[2], upToDateOutput, arg[1]) then
 	return
 end
 
