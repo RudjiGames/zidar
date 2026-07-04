@@ -115,6 +115,70 @@ function addShaders(_patterns)
 	end
 end
 
+-- File modification time for the shader up-to-date check. Prefer genie's os.stat; fall back to LuaFileSystem when the
+-- host lua has it. Returns nil when the time can't be determined - EVERY caller treats nil as "assume out of date", so
+-- an unknown timestamp forces a rebuild and can never keep a STALE header (worst case: an unnecessary recompile). If
+-- neither mechanism is available the whole optimisation degrades to "always rebuild" == the original behaviour.
+local _lfsOk, _lfs = pcall(require, "lfs")
+local function fileMTime(_path)
+	if os.stat then
+		local ok, st = pcall(os.stat, _path)
+		if ok and st and st.mtime then return st.mtime end
+	end
+	if _lfsOk and _lfs then
+		return _lfs.attributes(_path, "modification")
+	end
+	return nil
+end
+
+-- Resolve a shader #include against the including file's own directory first, then the shaderc -i search dirs (the
+-- same order shaderc searches). Returns the first existing path, or nil - an include that resolves to nothing is
+-- treated as a changed dependency (rebuild), never silently ignored.
+local function resolveShaderInclude(_inc, _fromDir, _searchDirs)
+	local here = _fromDir .. "/" .. _inc
+	if os.isfile(here) then return here end
+	for _, d in ipairs(_searchDirs) do
+		if os.isfile(d .. _inc) then return d .. _inc end
+	end
+	return nil
+end
+
+-- True only if every file _file TRANSITIVELY #includes is <= _outTime (mirrors qrc_is_up_to_date's dependency walk,
+-- but recursively: bgfx shaders include headers that include more headers, so a one-level check would miss a changed
+-- deep header and ship a stale shader). Any newer / unreadable / unresolvable dependency -> false. _visited breaks
+-- include cycles and skips re-stat'ing shared headers.
+local function shaderDepsUpToDate(_file, _searchDirs, _outTime, _visited)
+	local f = io.open(_file, "r")
+	if not f then return false end
+	local data = f:read("*a")
+	f:close()
+	for inc in string.gmatch(data, '#include%s+"([^"]+)"') do
+		local resolved = resolveShaderInclude(inc, path.getdirectory(_file), _searchDirs)
+		if not resolved then return false end
+		if not _visited[resolved] then
+			_visited[resolved] = true
+			local t = fileMTime(resolved)
+			if not t or t > _outTime then return false end
+			if not shaderDepsUpToDate(resolved, _searchDirs, _outTime, _visited) then return false end
+		end
+	end
+	return true
+end
+
+-- The committed .bin.h can be reused only if it post-dates the shader source, its varying.def, AND every transitively
+-- included file. Missing header / unknown source or varying time -> rebuild.
+local function shaderUpToDate(_src, _binHeader, _varying, _searchDirs)
+	local outTime = fileMTime(_binHeader)
+	if not outTime then return false end
+	local srcTime = fileMTime(_src)
+	if not srcTime or srcTime > outTime then return false end
+	if _varying and os.isfile(_varying) then
+		local vTime = fileMTime(_varying)
+		if not vTime or vTime > outTime then return false end
+	end
+	return shaderDepsUpToDate(_src, _searchDirs, outTime, {})
+end
+
 -- Regenerates the embedded-shader headers registered for _projectName.
 -- Runs at genie time; clears _shaderFiles so registrations never leak between
 -- projects. No-op (and no error) when no shaders were registered or shaderc is
@@ -143,8 +207,10 @@ function shaderConfigure(_projectName)
 	end
 
 	local includes = " -i " .. quote(bgfxPath .. "src/")
+	local searchDirs = { bgfxPath .. "src/" }   -- raw -i dirs, for the up-to-date #include resolver (parallel to `includes`)
 	if os.isdir(bgfxPath .. "examples/common/") then
 		includes = includes .. " -i " .. quote(bgfxPath .. "examples/common/")
+		searchDirs[#searchDirs + 1] = bgfxPath .. "examples/common/"
 	end
 
 	local dllPrefix = withDllPath(bgfxPath .. "tools/bin/" .. hostToolDir())
@@ -171,48 +237,53 @@ function shaderConfigure(_projectName)
 				varyingArg = " --varyingdef " .. quote(varying)
 			end
 
-			local pieces   = {}
-			local complete = true
-			for _, v in ipairs(shaderVariants(shaderType)) do
-				local cmd = dllPrefix .. quote(shadercExe) .. includes ..
-					" --type " .. shaderType ..
-					" --platform " .. v.plat ..
-					(v.p and (" -p " .. v.p) or "") ..
-					(v.o and (" -O " .. v.o) or "") ..
-					varyingArg ..
-					" -f " .. quote(file) ..
-					" -o " .. quote(tmp) ..
-					" --bin2c " .. base .. "_" .. v.s ..
-					devnull
+			-- Skip the (expensive) shaderc variant sweep when the committed .bin.h already post-dates the source,
+			-- its varying.def and every transitively #included header. Conservative: any unknown/unresolved input
+			-- rebuilds, so this never keeps a stale shader (see shaderUpToDate).
+			if not shaderUpToDate(file, binHeader, varying, searchDirs) then
+				local pieces   = {}
+				local complete = true
+				for _, v in ipairs(shaderVariants(shaderType)) do
+					local cmd = dllPrefix .. quote(shadercExe) .. includes ..
+						" --type " .. shaderType ..
+						" --platform " .. v.plat ..
+						(v.p and (" -p " .. v.p) or "") ..
+						(v.o and (" -O " .. v.o) or "") ..
+						varyingArg ..
+						" -f " .. quote(file) ..
+						" -o " .. quote(tmp) ..
+						" --bin2c " .. base .. "_" .. v.s ..
+						devnull
 
-				local data = os.execute(cmd) and readFile(tmp)
-				if data and #data > 0 then
-					table.insert(pieces, data)
-				else
-					complete = false
-					printWarning("shaderc could not build " .. base .. " (" .. v.s .. ").")
-					break
+					local data = os.execute(cmd) and readFile(tmp)
+					if data and #data > 0 then
+						table.insert(pieces, data)
+					else
+						complete = false
+						printWarning("shaderc could not build " .. base .. " (" .. v.s .. ").")
+						break
+					end
 				end
-			end
-			os.remove(tmp)
+				os.remove(tmp)
 
-			-- Strictly additive: only replace the committed header when the whole
-			-- variant set compiled, so a missing tool or transient failure can
-			-- never truncate or partially overwrite a known-good header.
-			if complete then
-				-- pssl is supplied externally on the platforms that need it.
-				table.insert(pieces, "extern const uint8_t* "  .. base .. "_pssl;\n")
-				table.insert(pieces, "extern const uint32_t " .. base .. "_pssl_size;\n")
-				local out = io.open(binHeader, "wb")
-				if out then
-					out:write(table.concat(pieces))
-					out:close()
-					printInfo("\xE2\x96\xB6 embedded shader : " .. base .. ".bin.h", Color.Green)
+				-- Strictly additive: only replace the committed header when the whole
+				-- variant set compiled, so a missing tool or transient failure can
+				-- never truncate or partially overwrite a known-good header.
+				if complete then
+					-- pssl is supplied externally on the platforms that need it.
+					table.insert(pieces, "extern const uint8_t* "  .. base .. "_pssl;\n")
+					table.insert(pieces, "extern const uint32_t " .. base .. "_pssl_size;\n")
+					local out = io.open(binHeader, "wb")
+					if out then
+						out:write(table.concat(pieces))
+						out:close()
+						printInfo("\xE2\x96\xB6 embedded shader : " .. base .. ".bin.h", Color.Green)
+					else
+						printWarning("Could not write " .. binHeader)
+					end
 				else
-					printWarning("Could not write " .. binHeader)
+					printWarning("Keeping committed header for " .. base .. ".bin.h (incomplete shaderc output).")
 				end
-			else
-				printWarning("Keeping committed header for " .. base .. ".bin.h (incomplete shaderc output).")
 			end
 		end
 	end
