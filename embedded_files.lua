@@ -102,9 +102,15 @@ end
 -- compiled. Safe to call multiple times.
 function addShaders(_patterns)
 	_shaderFiles = _shaderFiles or {}
+	_shaderFilesSeen = _shaderFilesSeen or {}   -- dedup set parallel to _shaderFiles; reset with it in shaderConfigure
 	for _, pattern in ipairs(_patterns) do
 		for _, file in ipairs(os.matchfiles(pattern)) do
-			table.insert(_shaderFiles, file)
+			-- Overlapping patterns (or repeat calls) previously inserted the same file more than once, so
+			-- shaderConfigure then re-ran shaderc on it for every duplicate. Insert each file at most once.
+			if not _shaderFilesSeen[file] then
+				_shaderFilesSeen[file] = true
+				table.insert(_shaderFiles, file)
+			end
 		end
 	end
 end
@@ -117,6 +123,7 @@ function shaderConfigure(_projectName)
 
 	local shaderFiles = _shaderFiles
 	_shaderFiles = nil
+	_shaderFilesSeen = nil   -- reset the dedup set with the file list so registrations never leak between projects
 
 	if shaderFiles == nil or #shaderFiles == 0 then
 		return

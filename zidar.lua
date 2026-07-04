@@ -526,7 +526,13 @@ local _projectIsCPPExtensions = {
 
 -- Returns true if any of the project files have a C++ extension
 function projectIsCPP(_projectFiles)
-	local cacheKey = table.concat(_projectFiles, "\n")
+	-- Key on a SORTED copy: the result ("does any file have a C++ extension") is order-independent, but the old
+	-- key was table.concat in list order, so {a,b} and {b,a} missed each other's cached result and re-globbed.
+	-- Sort a copy (never the caller's table) so equivalent file sets share one cache entry.
+	local keyFiles = {}
+	for i = 1, #_projectFiles do keyFiles[i] = _projectFiles[i] end
+	table.sort(keyFiles)
+	local cacheKey = table.concat(keyFiles, "\n")
 	local cached = _projectIsCPPCache[cacheKey]
 	if cached ~= nil then
 		return cached

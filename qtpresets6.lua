@@ -184,18 +184,22 @@ function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles,
 			-- lfs support is required too: sudo luarocks install luafilesystem
 			local qtLinks = RG_QT_LIB_PREFIX .. table.concat( _libsToLink, " " .. RG_QT_LIB_PREFIX )
 
-			local qtLibs  = "pkg-config --libs " .. qtLinks
-			local qtFlags = "pkg-config --cflags " .. qtLinks
-			local libPipe = io.popen( qtLibs, 'r' )
-			local flagPipe= io.popen( qtFlags, 'r' )
+			-- pkg-config output is deterministic for a given Qt lib set, but qtConfigure() runs per project/config,
+			-- so the two popen() spawns fired on every configuration. Memoize by the lib-set key so each unique set
+			-- shells out at most once per generation (a failed lookup caches nil too, matching the old retry result).
+			_qtPkgConfigCache = _qtPkgConfigCache or {}
+			local pkg = _qtPkgConfigCache[qtLinks]
+			if not pkg then
+				local libPipe  = io.popen( "pkg-config --libs "   .. qtLinks, 'r' )
+				local flagPipe = io.popen( "pkg-config --cflags " .. qtLinks, 'r' )
+				pkg = { libs = libPipe:read( '*line' ), flags = flagPipe:read( '*line' ) }
+				libPipe:close()
+				flagPipe:close()
+				_qtPkgConfigCache[qtLinks] = pkg
+			end
 
-			qtLibs = libPipe:read( '*line' )
-			qtFlags = flagPipe:read( '*line' )
-			libPipe:close()
-			flagPipe:close()
-
-			buildoptions { qtFlags }
-			linkoptions { qtLibs }
+			buildoptions { pkg.flags }
+			linkoptions { pkg.libs }
 
 		elseif os.is("macosx") then
 			-- buildoptions { qtFlags }
