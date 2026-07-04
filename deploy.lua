@@ -33,7 +33,7 @@ Permissions = {
 local function convertImage(_src, _dst, _width, _height)
 	os.mkdir(path.getdirectory(_dst))
 	local imageConv = getToolForHost("imageconv")
-	os.execute(imageConv .. " " .. _src .. " " .. _dst .. " " .. _width .. " " .. _height)
+	os.execute('"' .. imageConv .. '" "' .. _src .. '" "' .. _dst .. '" ' .. _width .. " " .. _height)
 end
 
 local function cloneDir(_copySrc, _copyDst)
@@ -70,7 +70,7 @@ local function cloneDirWithSed(_copySrc, _copyDst, _sedCmd, _rename)
 		local dstFileToCopy	= dstPath .. "/" .. fileName
 
 		os.mkdir(dstPath)
-		os.execute(_sedCmd .. " " .. srcFileToCopy .. " > " .. dstFileToCopy)
+		os.execute(_sedCmd .. ' "' .. srcFileToCopy .. '" > "' .. dstFileToCopy .. '"')
 	end
 end
 

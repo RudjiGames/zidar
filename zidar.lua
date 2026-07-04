@@ -804,7 +804,7 @@ function projectInstall3rdPartyLib(_name)
 	if downloadLink then
 		print("Downloading " .. textColor(name, Color.Cyan) .. " from: " .. textColor(downloadLink, Color.Yellow))
 		if not pathIsDirCached(destination) then
-			if not os.execute("git clone " .. downloadLink .. " " .. destination) then
+			if not os.execute('git clone "' .. downloadLink .. '" "' .. destination .. '"') then
 				printError("Failed to download missing dependency: " .. textColor(name, Color.Red))
 			end
 			return pathIsDirCached(destination, true)
@@ -902,7 +902,11 @@ function projectGetPath(_name, _canFail)
 	return result
 end
 
-RG_CORE_COMPAT_DIR = path.join(projectGetPath("rg_core", true), "include/compat")
+-- projectGetPath(..., true) returns nil when rg_core is absent (a generic zidar repo need not contain it); path.join
+-- would then crash at load. Fall back to "" so this line - and toolchain.lua's unconditional RG_CORE_COMPAT_DIR .. "/..."
+-- concatenations - stay safe (an unused, nonexistent include path when rg_core isn't part of the build).
+local rgCorePath = projectGetPath("rg_core", true)
+RG_CORE_COMPAT_DIR = rgCorePath and path.join(rgCorePath, "include/compat") or ""
 
 -- Locates the build script (.lua) for a project by searching known directories
 function projectGetScriptPath(_name, _requester)
@@ -1073,6 +1077,11 @@ function projectAdd(_name)
 			links({ _name })
 			return
 		end
+		-- Mark added BEFORE recursing into dependencies. Otherwise a dependency cycle (A -> B -> A) re-enters
+		-- projectAdd(A) while A is still being added, the guard is still unset, and it recurses forever. Marking
+		-- first makes the re-entrant call hit the g_projectIsAdded check and return, breaking the cycle.
+		g_projectIsAdded[name] = true
+
 		local dependencies = projectGetDependencies(name)
 		for _, dependency in ipairs(dependencies) do
 			projectAdd(dependency)
@@ -1080,7 +1089,6 @@ function projectAdd(_name)
 
 		if _G["projectAdd_" .. name] ~= nil then -- prebuilt libs have no projects
 			_G["projectAdd_" .. name]()
-			g_projectIsAdded[name] = true
 		else
 			printWarning(
 				"Project " .. textColor(name, Color.Cyan) .. " being added, but no add function found. Forgotten to load the project script?"
@@ -1151,6 +1159,7 @@ end
 
 local g_subDependenciesCount = {}
 local g_resolvedDependencies = {}
+local g_resolvingDependencies = {} -- projects currently mid-resolution; the cycle guard for projectGetDependencies
 
 --
 function sortDependencies(a, b)
@@ -1169,6 +1178,16 @@ function projectGetDependencies(_name, _additionalDeps)
 		g_subDependenciesCount[_name] = #g_resolvedDependencies[_name]
 		return g_resolvedDependencies[_name]
 	end
+
+	-- Cycle guard: the resolved-cache below is only populated AFTER the recursive merge (see the loop that calls
+	-- projectGetDependencies(d)), so a dependency cycle (A -> B -> A) would re-enter this function for a project
+	-- still being resolved and recurse to a stack overflow. If we're already resolving this name, break the cycle
+	-- (return empty) and warn, instead of hanging.
+	if g_resolvingDependencies[fullName] then
+		printWarning("Circular dependency detected at " .. textColor(fullName, Color.Yellow) .. " - breaking the cycle.")
+		return {}
+	end
+	g_resolvingDependencies[fullName] = true
 
 	local dependenciesHashed = {}
 	local dependencies = {}
@@ -1222,6 +1241,8 @@ function projectGetDependencies(_name, _additionalDeps)
 	for _, dependency in ipairs(dependencies) do
 		configDependency(dependency)
 	end
+
+	g_resolvingDependencies[fullName] = nil -- finished resolving this node; release the cycle guard
 
 	if not hasAdditionalDeps then
 		g_resolvedDependencies[_name] = dependencies

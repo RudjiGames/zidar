@@ -46,9 +46,9 @@ local function mkdir(_dirname)
 
 	if not file_isdir(dir) then
 		if not windows then
-			os.execute("mkdir -p " .. dir .. "  > /dev/null")
+			os.execute('mkdir -p "' .. dir .. '"  > /dev/null')
 		else
-			os.execute("mkdir " .. dir .. " > nul")
+			os.execute('mkdir "' .. dir .. '" > nul')
 		end
 	end
 end
@@ -96,38 +96,119 @@ QtToolExe.uic		= getExe("uic")
 QtToolExe.qrc		= getExe("rcc")
 QtToolExe.ts		= getExe("lrelease")
 
-local function file_get_time(filepath)
-	if windows then
-		local pipe = io.popen('dir /4/tw "'..filepath..'"')
-		local output = pipe:read"*a"
-		pipe:close()
-		return output:match"\n(%d.-:%S*)"
-	else
-		local pipe = io.popen("stat -c %Y " .. filepath)
-		local last_modified = pipe:read("*a")
-		pipe:close()
-		return last_modified
-	end
+local function shellQuoteWindows(_s)
+	return "'" .. string.gsub(_s, "'", "''") .. "'"
 end
 
-local function file_is_upToDate(outputFileName) 
-	--if file_exists(outputFileModTime) and ( inputFileModTime < outputFileModTime ) then
-		--print( outputFileName.." is up-to-date, not regenerating" )
-		--io.stdout:flush()
-		--return true
-	--else
-		--print( outputFileName .. " is out of date, regenerating" )
-	--end
-	return false
+local function shellQuotePosix(_s)
+	return "'" .. string.gsub(_s, "'", "'\\''") .. "'"
+end
+
+local function trim(_s)
+	return (_s and string.match(_s, "^%s*(.-)%s*$")) or nil
+end
+
+local lfs_ok, lfs = pcall(require, "lfs")
+
+local function file_get_time(_filepath)
+	if not file_exists(_filepath) then
+		return nil
+	end
+
+	-- LuaFileSystem reads the mtime with ZERO child processes. The old code spawned a powershell (Windows) or
+	-- stat (posix) PER FILE, so a .qrc with hundreds of embedded resources fired hundreds of serial process
+	-- cold-starts on every rebuild - minutes of latency that looks like a hung build. mtimes are only ever
+	-- compared against each other (input vs output vs deps), so units/epoch don't matter as long as every value
+	-- in a run comes from the SAME source; hence lfs is used exclusively when present (a nil attribute -> nil ->
+	-- treated as out-of-date, the safe result). The popen probe stays only as the fallback for a lua without lfs.
+	if lfs_ok then
+		return lfs.attributes(_filepath, "modification")
+	end
+
+	local pipe = nil
+	if windows then
+		pipe = io.popen('powershell -NoProfile -Command "(Get-Item -LiteralPath ' .. shellQuoteWindows(_filepath) .. ').LastWriteTimeUtc.Ticks"')
+	else
+		local quoted = shellQuotePosix(_filepath)
+		pipe = io.popen('(stat -f %m ' .. quoted .. ' 2>/dev/null || stat -c %Y ' .. quoted .. ' 2>/dev/null)')
+	end
+
+	if not pipe then
+		return nil
+	end
+
+	local output = pipe:read("*a")
+	pipe:close()
+	return tonumber(trim(output))
+end
+
+local function pathJoin(_dir, _leaf)
+	if not _dir or _dir == "" then
+		return _leaf
+	end
+	local last = string.sub(_dir, -1)
+	if last == "/" or last == "\\" then
+		return _dir .. _leaf
+	end
+	return _dir .. nativeSlash .. _leaf
+end
+
+local function getPath(str, sep)
+	if not str then
+		return nil
+	end
+	if sep then
+		return str:match("(.*" .. sep .. ")")
+	end
+	return str:match("^(.*[/\\])")
+end
+
+local function qrc_is_up_to_date(_inputFileName, _outputFileName)
+	local outputTime = file_get_time(_outputFileName)
+	local inputTime = file_get_time(_inputFileName)
+	if not outputTime or not inputTime or inputTime > outputTime then
+		return false
+	end
+
+	local qrcDir = getPath(_inputFileName) or ""
+	local qrcFile = io.open(_inputFileName, "r")
+	if not qrcFile then
+		return false
+	end
+
+	local qrcData = qrcFile:read("*a")
+	qrcFile:close()
+
+	for relPath in string.gmatch(qrcData, "<file[^>]*>%s*([^<]+)%s*</file>") do
+		local depPath = trim(relPath)
+		if depPath and depPath ~= "" then
+			local depTime = file_get_time(pathJoin(qrcDir, depPath))
+			if not depTime or depTime > outputTime then
+				return false
+			end
+		end
+	end
+
+	return true
+end
+
+local function file_is_upToDate(_inputFileName, _outputFileName, _mode)
+	local outputTime = file_get_time(_outputFileName)
+	local inputTime = file_get_time(_inputFileName)
+	if not outputTime or not inputTime then
+		return false
+	end
+	if inputTime > outputTime then
+		return false
+	end
+	if _mode == "-rcc" then
+		return qrc_is_up_to_date(_inputFileName, _outputFileName)
+	end
+	return true
 end
 
 local function getFileNameNoExtNoPathFromPath( path )
 	return string.sub(path, 1, path:find("%.[^.]*$") - 1):match("[^\\/]+$")
-end
-
-local getPath=function(str,sep)
-    sep=sep or'/'
-    return str:match("(.*"..sep..")")
 end
 
 local outputDir = outputFilePath and getPath(outputFilePath) or ""
@@ -146,11 +227,19 @@ local runProgram = function(command)
 	return result
 end
 
-mkdir( outputDir )
+if outputDir ~= "" then
+	mkdir( outputDir )
+end
+
+-- All four tool modes generate arg[2] -> outputFilePath and share the SAME up-to-date test (mode = arg[1]). Run it
+-- ONCE here and bail silently when nothing changed, so an up-to-date rebuild no longer prints a "Generating <type>
+-- for ..." line for every file it then immediately skips (the per-branch checks below were AFTER their print).
+if file_is_upToDate(arg[2], outputFilePath, arg[1]) then
+	return
+end
 
 if arg[1] == "-moc" then
 	print("Generating MOC file for " .. arg[2])
-	if file_is_upToDate(outputFilePath) then return end
 	local fullMOCPath = QtToolExe.moc.." \""..arg[2].. "\" -I \"" .. getPath(arg[2]) .. "\" -o \"" .. outputFilePath .."\" -f\"".. arg[4] .. "_pch.h\" -f\"" .. arg[2] .. "\""
 	if windows then
 		fullMOCPath = '""'..QtToolExe.moc..'" "'..arg[2].. '" -I "' .. getPath(arg[2]) .. '" -o "' .. outputFilePath ..'"' .. " -f".. arg[4] .. "_pch.h -f" .. arg[2] .. '"'
@@ -162,7 +251,6 @@ if arg[1] == "-moc" then
 	end
 elseif arg[1] == "-uic" then
 	print("Generating UI header for " .. arg[2])
-	if file_is_upToDate(outputFilePath) then return end
 	local fullUICPath = QtToolExe.uic.." \""..arg[2].."\" -o \""..outputFilePath.."\""
 	if windows then
 		fullUICPath = '""'..QtToolExe.uic..'" "'..arg[2]..'" -o "'..outputFilePath..'""'
@@ -174,7 +262,6 @@ elseif arg[1] == "-uic" then
 	end
 elseif arg[1] == "-rcc" then
 	print("Compiling Resource file for " .. arg[2])
-	if file_is_upToDate(outputFilePath) then return end
 	local fullRCCPath = QtToolExe.qrc.." -name \""..getFileNameNoExtNoPathFromPath( arg[2] ).."\" \""..arg[2].."\" -o \""..outputFilePath.."\""
 	if windows then
 		fullRCCPath = '""'..QtToolExe.qrc..'" -name "'..getFileNameNoExtNoPathFromPath( arg[2] )..'" "'..arg[2]..'" -o "'..outputFilePath..'""'
@@ -186,7 +273,6 @@ elseif arg[1] == "-rcc" then
 	end
 elseif arg[1] == "-ts" then
 	print("Generating Translation file for " .. arg[2])
-	if file_is_upToDate(outputFilePath) then return end
 	local fullTSPath = QtToolExe.ts.." \""..arg[2].."\""
 	if windows then
 		fullTSPath = '""' .. QtToolExe.ts .. '" "' .. arg[2] .. '""'
