@@ -140,6 +140,9 @@ function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles,
 					-- qsvgicon every .svg QIcon is silently null (toolbar buttons/docks lose their icons).
 					{ name = "iconengines\\qsvgicon" .. _dbgPrefix, srcPrefix = "/plugins/" },
 					{ name = "imageformats\\qsvg" .. _dbgPrefix, srcPrefix = "/plugins/" },
+					-- JPEG imageformat: capture screenshots are JPEG chunks the viewer decodes with QImage::fromData
+					-- (screenshot strip). PNG is built into Qt6Gui, JPEG is NOT - without qjpeg the strip is blank.
+					{ name = "imageformats\\qjpeg" .. _dbgPrefix, srcPrefix = "/plugins/" },
 				}
 
 				if _ACTION:find("gmake") then
