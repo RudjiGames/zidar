@@ -87,6 +87,14 @@ function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles,
 	
 		includedirs	{ QT_PATH .. "/include" }
 
+		-- Qt's own headers are not warning-clean at our /W4: qnumeric.h trips C4702 (unreachable code). This GENie
+		-- can't emit <ExternalWarningLevel>, so /external:W0 would only fight the toolset's default /external:W4 and
+		-- spew D9025. Instead just disable the specific low-value C4702 for Qt projects (a warning DISABLE, not a
+		-- level, so no D9025). Scoped to vs* since /wd is MSVC-only; other rg_* libraries keep C4702.
+		configuration { _configuration, "vs*" }
+			buildoptions { "/wd4702" }	-- unreachable code in Qt headers (qnumeric.h)
+		configuration { _configuration }
+
 		local libsDirectory = QT_PATH .. "/lib"
 		if os.is("macosx") then
 			linkoptions { "-F " .. libsDirectory }
