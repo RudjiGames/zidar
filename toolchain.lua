@@ -1445,6 +1445,68 @@ function commonConfig(_platform, _configuration)
 			linkoptions  { "-flto" }
 	end
 
+	-- ---------------------------------------------------------------------------------------------------------
+	-- Dead code elimination, optimized configurations only.
+	--
+	-- THE REASON THIS IS EXPLICIT: release and retail both carry the "Symbols" flag, so the linker gets /DEBUG -
+	-- and MSVC turns /OPT:REF OFF by default whenever /DEBUG is present. Without the line below, every optimized
+	-- build we ship keeps unreferenced functions and data. /Gy and /Gw are what make /OPT:REF able to act at all:
+	-- they put each function and each global into its own COMDAT, so the linker can drop them individually
+	-- instead of only whole object files.
+	--
+	-- /OPT:ICF is ENABLED, as a deliberate, informed trade - not an oversight. It folds byte-identical functions
+	-- (and read-only data) onto ONE address, so the size win is real, but the cost is equally real and lands on
+	-- OUR OWN binaries rather than the profiled target:
+	--
+	--   * A folded address resolves to whichever of the merged functions the PDB names first. Our crash reports
+	--     (rg_crash) and any self-profiling stack can therefore name a plausible WRONG sibling - typically a
+	--     same-shaped template instantiation or a trivial forwarder. Frames do not vanish, they mis-attribute.
+	--   * Function-pointer identity across folded functions becomes true. Anything dispatching on "is this the
+	--     same callback" must not assume distinct functions have distinct addresses.
+	--   * MSVC has no "safe ICF" (there is no equivalent of gold's --icf=safe); /OPT:ICF=<n> tunes passes, not
+	--     safety. It is all or nothing.
+	--
+	-- This does NOT affect profiling of a TARGET process - that reads the target's own binary and PDB. It affects
+	-- only how Omni's own binaries symbolize. Revert to plain /OPT:REF if a crash report is ever traced to a
+	-- folded frame.
+	--
+	-- GCC/Clang: -ffunction-sections/-fdata-sections are the /Gy//Gw equivalent, --gc-sections the /OPT:REF one.
+	-- --icf=all is the ICF equivalent and is gated to the linkers that accept it (lld / gold), since bfd ld does
+	-- not take it and would fail the link rather than ignore it.
+	-- ---------------------------------------------------------------------------------------------------------
+	if _configuration == "release" or _configuration == "retail" then
+
+		-- COMPILE side: every project, including static libs. Splitting functions and globals into their own
+		-- COMDATs/sections is what gives the final link something to strip; doing it only in the executable would
+		-- leave the libraries - which is where nearly all the code is - as unsplittable blocks.
+		configuration { "vs*", "not orbis", "not prospero", _platform, _configuration }
+			buildoptions { "/Gy", "/Gw" }
+
+		configuration { "linux-gcc* or linux-clang* or mingw-* or osx*", _platform, _configuration }
+			buildoptions { "-ffunction-sections", "-fdata-sections" }
+
+		-- LINK side: EXECUTABLES ONLY. A static-lib project's "link" step is lib.exe (or ar), which does not take
+		-- linker switches - passing /OPT:REF there earns an LNK4044 "unrecognized option; ignored" on every single
+		-- lib and buys nothing, since stripping is a decision only the final link can make anyway.
+		if isExecutable then
+
+			configuration { "vs*", "not orbis", "not prospero", _platform, _configuration }
+				linkoptions { "/OPT:REF", "/OPT:ICF" }
+
+			configuration { "linux-gcc* or linux-clang* or mingw-*", _platform, _configuration }
+				linkoptions { "-Wl,--gc-sections" }
+
+			-- ICF only where the linker actually implements it. bfd ld rejects --icf outright (it does not just
+			-- ignore it), so this stays scoped to the clang/lld toolchains rather than riding along with
+			-- --gc-sections above.
+			configuration { "linux-clang*", _platform, _configuration }
+				linkoptions { "-Wl,--icf=all" }
+
+			configuration { "osx*", _platform, _configuration }
+				linkoptions { "-Wl,-dead_strip" }
+		end
+	end
+
 	configuration {}
 
 	if _OPTIONS["deploy"] ~= nil and isExecutable then
