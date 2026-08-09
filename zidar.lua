@@ -293,13 +293,21 @@ if os.getenv("RG_ZIDAR_DEPENDENCY_DIR") then
 	end
 end
 
-local QT_PATH = os.getenv("QTDIR")
-if QT_PATH ~= nil then
-	-- strip trailing slash if present before adding for consistent path handling
-	while string.sub(QT_PATH, -1) == "/" or string.sub(QT_PATH, -1) == "\\" do
-		QT_PATH = string.sub(QT_PATH, 1, -2)
+-- Qt roots are per target bitness: QTDIR for 64-bit, QTDIRx86 for 32-bit.
+-- Neither is validated here - qtpresets6.lua decides what is fatal (missing
+-- QTDIR) and what is merely a warning (missing QTDIRx86). This only reports.
+for _, qtVar in ipairs({ "QTDIR", "QTDIRx86" }) do
+	local qtPath = os.getenv(qtVar)
+	if qtPath ~= nil then
+		-- strip trailing slash if present before adding for consistent path handling
+		while string.sub(qtPath, -1) == "/" or string.sub(qtPath, -1) == "\\" do
+			qtPath = string.sub(qtPath, 1, -2)
+		end
+		-- %-24s + the leading space matches the 25-column alignment the other
+		-- environment lines above use ("zidar path :" plus manual padding).
+		local label = string.format("%-24s", qtVar .. " :")
+		print(textColor("\xE2\x96\xB6", Color.Green) .. textColor(" " .. label, Color.Cyan) .. textColor(qtPath, Color.Green))
 	end
-	print(textColor("\xE2\x96\xB6", Color.Green) .. textColor(" QTDIR :", Color.Cyan) .. "                 " .. textColor(QT_PATH, Color.Green))
 end
 
 printInfo(textColor("\xE2\x96\xB6", Color.Green) .. " " .. textColor("Checking environment... ", Color.Cyan) .. textColor("OK!", Color.Green))

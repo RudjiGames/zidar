@@ -7,23 +7,95 @@
 qt = {}
 qt.version = "6" -- default Qt version
 
+-- Qt root is per target bitness: 64-bit builds use QTDIR, 32-bit builds use
+-- QTDIRx86. Qt has no multi-arch install layout - the two are separate trees
+-- with identically named DLLs - so a single variable cannot serve both.
+function qtEnvVarName(_is64bit)
+	return _is64bit and "QTDIR" or "QTDIRx86"
+end
+
+-- Qt root for the target bitness with trailing slashes stripped, or nil if the
+-- variable is unset or empty.
+local function qtRootForTarget(_is64bit)
+	local qtPath = os.getenv(qtEnvVarName(_is64bit))
+	if qtPath == nil then
+		return nil
+	end
+	while string.sub(qtPath, -1) == "/" or string.sub(qtPath, -1) == "\\" do
+		qtPath = string.sub(qtPath, 1, -2)
+	end
+	if qtPath == "" then
+		return nil
+	end
+	return qtPath
+end
+
+-- qtConfigure() runs once per project per configuration, so warn at most once
+-- per variable instead of repeating the same line for every Qt project.
+local g_qtMissingWarned = {}
+local function qtWarnMissingOnce(_varName, _qtPath)
+	if g_qtMissingWarned[_varName] then
+		return
+	end
+	g_qtMissingWarned[_varName] = true
+	local why = (_qtPath == nil)
+		and (_varName .. " is not set")
+		or  (_varName .. ' points at "' .. _qtPath .. '", which is not a directory')
+	printWarning(why .. " - 32-bit Qt projects will be generated, but building them will fail until it is set.")
+end
+
+local function qtFileSize(_path)
+	local f = io.open(_path, "rb")
+	if not f then
+		return nil
+	end
+	local size = f:seek("end")
+	f:close()
+	return size
+end
+
+-- Staging a Qt DLL used to be "copy only if the destination is missing", which
+-- was safe while a single QTDIR meant the staged DLL could never be the wrong
+-- one. With separate QTDIR / QTDIRx86 roots - or after upgrading either Qt - a
+-- stale DLL from a previous version would survive forever, and the app would
+-- load a Qt6Core of one version next to a Qt6Svg of another. Qt modules only
+-- resolve against their own version, so that surfaces as an unhelpful "DLL is
+-- missing" at startup. Size is a cheap proxy for "different build": exact only
+-- in the sense that two different Qt builds of the same DLL are essentially
+-- never byte-identical in length.
+local function qtCopyIfDifferent(_source, _dest)
+	local destSize = qtFileSize(_dest)
+	if destSize ~= nil and destSize == qtFileSize(_source) then
+		return
+	end
+	os.mkdir(path.getdirectory(_dest))
+	os.copyfile(_source, _dest)
+end
+
 function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles, _tsfiles, _libsToLink, _copyDynamicLibraries, _is64bit, _dbgPrefix, _isFirstConfig, _copyOnlyDlls )
 
 	_copyOnlyDlls = _copyOnlyDlls or {}
-	 
+
 		local RG_QT_LIB_PREFIX		= "Qt" .. qt.version
 		local QT_PREBUILD_LUA_PATH	= 'lua "' .. path.getabsolute(RG_ZIDAR_DIR .. "/qtprebuild.lua") .. '"'
 		local sourcePath			= projectGetPath(project().name) .. "/src"
 
-		-- Defaults
-		local QT_PATH = os.getenv("QTDIR")
-    	if QT_PATH == nil then
-	    	printErrorAndExit("The QTDIR environment variable must be set to the Qt root directory to use qtpresets6.lua")
-	   	end
+		local QT_ENV_VAR	= qtEnvVarName(_is64bit)
+		local QT_PATH		= qtRootForTarget(_is64bit)
 
-		-- strip trailing slash if present for consistent path handling
-		if string.sub(QT_PATH, -1) == "/" or string.sub(QT_PATH, -1) == "\\" then
-			QT_PATH = string.sub(QT_PATH, 1, -2)
+		-- A missing 32-bit Qt must not break project generation. Generation stays
+		-- complete - moc/uic/rcc/lrelease prebuild steps, generated file paths,
+		-- include/lib dirs and link lines are all still emitted - so the solution
+		-- loads and the 64-bit configurations build normally. Only an actual 32-bit
+		-- build fails, and it fails against a path that names the variable to set.
+		-- A missing 64-bit Qt stays fatal: QTDIR is required by every Qt project.
+		local qtAvailable = (QT_PATH ~= nil) and os.isdir(QT_PATH)
+		if not qtAvailable then
+			if _is64bit then
+				printError("The " .. QT_ENV_VAR .. " environment variable must be set to the Qt root directory to use qtpresets6.lua", true)
+			end
+			qtWarnMissingOnce(QT_ENV_VAR, QT_PATH)
+			QT_PATH = QT_ENV_VAR .. "-NOT-SET"
 		end
 
 		local QT_MOC_FILES_PATH = path.join(sourcePath, "../.qt/qt_moc")
@@ -42,11 +114,18 @@ function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles,
 
 		local projName = project().name
 
+		-- Qt tool invocations embed QT_PATH, which now differs per bitness, so they
+		-- are collected here and emitted further down under a {_platform,
+		-- _configuration} filter. The files{} calls in these loops must NOT become
+		-- platform-scoped: they run for the first platform only (_isFirstConfig) and
+		-- the generated sources belong to every platform.
+		local qtPrebuildCmds = {}
+
 		-- Set up Qt pre-build steps and add the future generated file paths to the pkg
 		for _,file in ipairs( _mocfiles ) do
 			local absFile = path.getabsolute(file)
 			local mocFilePath = path.getabsolute(QT_MOC_FILES_PATH .. "/" .. path.getbasename(file) .. "_moc.cpp")
-			prebuildcommands { QT_PREBUILD_LUA_PATH .. ' -moc "' .. absFile .. '" "' .. QT_PATH .. '" "' .. projName .. '" "' .. mocFilePath .. '"' }
+			table.insert(qtPrebuildCmds, QT_PREBUILD_LUA_PATH .. ' -moc "' .. absFile .. '" "' .. QT_PATH .. '" "' .. projName .. '" "' .. mocFilePath .. '"')
 			if _isFirstConfig then
 				files { file, mocFilePath }
 				table.insert(addedFiles, file)
@@ -56,7 +135,7 @@ function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles,
 		for _,file in ipairs( _uifiles ) do
 			local absFile = path.getabsolute(file)
 			local uiFilePath = path.getabsolute(QT_UI_FILES_PATH .. "/" .. path.getbasename(file) .. "_ui.h")
-			prebuildcommands { QT_PREBUILD_LUA_PATH .. ' -uic "' .. absFile .. '" "' .. QT_PATH .. '" "' .. projName .. '" "' .. uiFilePath .. '"' }
+			table.insert(qtPrebuildCmds, QT_PREBUILD_LUA_PATH .. ' -uic "' .. absFile .. '" "' .. QT_PATH .. '" "' .. projName .. '" "' .. uiFilePath .. '"')
 			if _isFirstConfig then
 				files { file, uiFilePath }
 				table.insert(addedFiles, uiFilePath)
@@ -66,7 +145,7 @@ function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles,
 		for _,file in ipairs( _qrcfiles ) do
 			local absFile = path.getabsolute(file)
 			local qrcFilePath = path.getabsolute(QT_QRC_FILES_PATH .. "/" .. path.getbasename(file) .. "_qrc.cpp")
-			prebuildcommands { QT_PREBUILD_LUA_PATH .. ' -rcc "' .. absFile .. '" "' .. QT_PATH .. '" "' .. projName .. '" "' .. qrcFilePath .. '"' }
+			table.insert(qtPrebuildCmds, QT_PREBUILD_LUA_PATH .. ' -rcc "' .. absFile .. '" "' .. QT_PATH .. '" "' .. projName .. '" "' .. qrcFilePath .. '"')
 			if _isFirstConfig then
 				files { file, qrcFilePath }
 				table.insert(addedFiles, qrcFilePath)
@@ -76,7 +155,7 @@ function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles,
 		for _,file in ipairs( _tsfiles ) do
 			local absFile = path.getabsolute(file)
 			local tsFilePath = path.getabsolute(QT_TS_FILES_PATH .. "/" .. path.getbasename(file) .. "_ts.qm")
-			prebuildcommands { QT_PREBUILD_LUA_PATH .. ' -ts "' .. absFile .. '" "' .. QT_PATH .. '" "' .. projName .. '" "' .. tsFilePath .. '"' }
+			table.insert(qtPrebuildCmds, QT_PREBUILD_LUA_PATH .. ' -ts "' .. absFile .. '" "' .. QT_PATH .. '" "' .. projName .. '" "' .. tsFilePath .. '"')
 			if _isFirstConfig then
 				files { file, tsFilePath }
 				table.insert(addedFiles, tsFilePath)
@@ -84,16 +163,27 @@ function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles,
 		end				
 
 		local binDir = getBuildDirRoot(_platform, _configuration)
-	
+
+		-- Everything from here down depends on QT_PATH, so it must be scoped to this
+		-- PLATFORM as well as this configuration. commonConfig() already filters on
+		-- {_platform, _configuration}; qtConfigure() used to filter on the
+		-- configuration alone. That was harmless while both platforms shared a single
+		-- QTDIR (the values were identical, merely emitted twice), but with QTDIR and
+		-- QTDIRx86 it would put 32-bit include/lib paths and moc commands into the
+		-- 64-bit configuration.
+		configuration { _platform, _configuration }
+
+		prebuildcommands { qtPrebuildCmds }
+
 		includedirs	{ QT_PATH .. "/include" }
 
 		-- Qt's own headers are not warning-clean at our /W4: qnumeric.h trips C4702 (unreachable code). This GENie
 		-- can't emit <ExternalWarningLevel>, so /external:W0 would only fight the toolset's default /external:W4 and
 		-- spew D9025. Instead just disable the specific low-value C4702 for Qt projects (a warning DISABLE, not a
 		-- level, so no D9025). Scoped to vs* since /wd is MSVC-only; other rg_* libraries keep C4702.
-		configuration { _configuration, "vs*" }
+		configuration { _platform, _configuration, "vs*" }
 			buildoptions { "/wd4702" }	-- unreachable code in Qt headers (qnumeric.h)
-		configuration { _configuration }
+		configuration { _platform, _configuration }
 
 		local libsDirectory = QT_PATH .. "/lib"
 		if os.is("macosx") then
@@ -105,7 +195,11 @@ function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles,
 
 		if os.is("windows") then
 
-			if _copyDynamicLibraries then
+			-- qtAvailable gate: these os.copyfile calls run at GENERATION time, not
+			-- build time, so without a real Qt root they would silently copy nothing
+			-- (or noisily fail) while generating. Skipping keeps generation clean; the
+			-- DLLs land on the next generate once the variable points somewhere real.
+			if _copyDynamicLibraries and qtAvailable then
 
 				local destPath = binDir
 				destPath = string.gsub( destPath, "([/]+)", "\\" ) .. '\\bin\\'
@@ -120,11 +214,7 @@ function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles,
 
 				for _, lib in ipairs( _libsToLink ) do
 					local libname =  RG_QT_LIB_PREFIX .. lib  .. _dbgPrefix .. '.dll'
-					local source = QT_PATH .. '/bin/' .. libname
-					local dest = destPath .. libname
-					if not os.isfile(dest) then
-						os.copyfile( source, dest )
-					end
+					qtCopyIfDifferent( QT_PATH .. '/bin/' .. libname, destPath .. libname )
 				end
 
 				-- Runtime-only Qt DLLs: copied to the output but NOT linked. These are transitive runtime
@@ -133,11 +223,7 @@ function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles,
 				-- Passed in via addProject_qt's _extraQtDlls argument.
 				for _, lib in ipairs( _copyOnlyDlls ) do
 					local libname =  RG_QT_LIB_PREFIX .. lib  .. _dbgPrefix .. '.dll'
-					local source = QT_PATH .. '/bin/' .. libname
-					local dest = destPath .. libname
-					if not os.isfile(dest) then
-						os.copyfile( source, dest )
-					end
+					qtCopyIfDifferent( QT_PATH .. '/bin/' .. libname, destPath .. libname )
 				end
 
 				local otherDLLs = {
@@ -160,12 +246,7 @@ function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles,
 
 				for i=1, #otherDLLs, 1 do
 					local libname =  otherDLLs[i].name .. '.dll'
-					local source = QT_PATH .. otherDLLs[i].srcPrefix .. libname
-					local dest = destPath .. '\\' .. libname
-					if not os.isfile(dest) then
-						os.mkdir(path.getdirectory(dest))
-						os.copyfile( source, dest )
-					end
+					qtCopyIfDifferent( QT_PATH .. otherDLLs[i].srcPrefix .. libname, destPath .. '\\' .. libname )
 				end
 			end
 
@@ -224,7 +305,10 @@ function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles,
 			for _,lib in ipairs(_libsToLink) do
 				print("Linking framework: " .. libsDirectory .. "/Qt" .. lib .. ".framework")
 				-- make symbolic link to header files directory
-				os.execute("ln -s -f " .. libsDirectory .. "/Qt" .. lib .. ".framework/Versions/A/Headers/ " .. QT_PATH .. "/include/Qt" .. lib)
+				-- (skipped without a real Qt root: this runs at generation time)
+				if qtAvailable then
+					os.execute("ln -s -f " .. libsDirectory .. "/Qt" .. lib .. ".framework/Versions/A/Headers/ " .. QT_PATH .. "/include/Qt" .. lib)
+				end
 				linkoptions {
 					"-framework " .. "Qt" .. lib,
 				}
