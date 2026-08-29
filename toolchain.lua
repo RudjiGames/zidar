@@ -58,6 +58,8 @@ newoption {
 	description = "Choose VS toolset",
 	allowed = {
 		{ "vs2017-clang",       "Clang with MS CodeGen"             },
+		{ "vs2022-clang",       "Clang/LLVM (clang-cl) on VS2022"   },
+		{ "vs2026-clang",       "Clang/LLVM (clang-cl) on VS2026"   },
 		{ "vs2017-xp",          "Visual Studio 2017 targeting XP"   },
 		{ "winstore100",        "Universal Windows App 10.0"        },
 		{ "durango",            "Durango"                           },
@@ -142,6 +144,11 @@ newoption {
 newoption {
 	trigger     = "with-avx2",
 	description = "Use AVX2 vector extension."
+}
+
+newoption {
+	trigger     = "with-obfuscation",
+	description = "Enable per-function license-gate obfuscation (defines RG_OBFUSCATE_ENABLE; effective only under an obfuscating clang toolset - see src/libs/rg_license/OBFUSCATION.md)."
 }
 
 newoption {
@@ -654,7 +661,7 @@ function toolchain()
 			if "vs2017-clang" == _OPTIONS["vs"] then
 				premake.vstudio.toolset = "v141_clang_c2"
 			else
-				premake.vstudio.toolset = ("LLVM-" .. _ACTION)
+				premake.vstudio.toolset = "ClangCL"	-- VS built-in clang-cl toolset (VC\Tools\Llvm); "LLVM-vsXXXX" is not a real toolset name
 			end
 			location (path.join(RG_ZIDAR_BUILD_DIR, "projects", _ACTION .. "-clang"))
 		elseif "winstore100" == _OPTIONS["vs"] then
@@ -733,6 +740,13 @@ function toolchain()
 		flags { "EnableAVX2" }
 	end
 
+	-- Per-function license-gate obfuscation (ANTIHACK Tier 2). Defines RG_OBFUSCATE_ENABLE for every project, but
+	-- only src/libs/rg_license includes rg_obfuscate.h and only an obfuscating clang fork acts on the annotations;
+	-- under MSVC or stock clang this is a no-op. See src/libs/rg_license/OBFUSCATION.md.
+	if _OPTIONS["with-obfuscation"] then
+		defines { "RG_OBFUSCATE_ENABLE" }
+	end
+
 	if (_OPTIONS["with-remove-crt"] ~= nil) then
 		removeCrt()
 	end
@@ -778,8 +792,19 @@ function commonConfig(_platform, _configuration)
 	flags {
 		"Cpp20",
 		"ExtraWarnings",
-		"FloatFast",
 	}
+
+	-- Fast FP math. Under MSVC, FloatFast (=/fp:fast) allows reassociation/contraction but still honours NaN/Inf.
+	-- Under clang-cl, FloatingPointModel=Fast becomes -ffast-math, which ALSO turns on -ffinite-math-only ("assume no
+	-- NaN/Inf") - and the toolset appends that -ffast-math AFTER AdditionalOptions, so it cannot be cancelled by a
+	-- later flag. Omni's FP aggregation (min/max, insights, ML) and the vendored ggml BOTH require NaN/Inf to be
+	-- honoured (ggml has a hard #error guarding exactly this). So under clang do NOT set FloatingPointModel=Fast;
+	-- emit the fast-math subset directly with -fno-finite-math-only LAST (within one option string, so it wins).
+	if _OPTIONS["vs"] and string.find(_OPTIONS["vs"], "-clang", 1, true) then
+		buildoptions { "-ffast-math -fno-finite-math-only" }
+	else
+		flags { "FloatFast" }
+	end
 
 	configuration { "vs*", "not orbis", "not prospero", _platform, _configuration }
 		includedirs { RG_CORE_COMPAT_DIR .. "/msvc" }
