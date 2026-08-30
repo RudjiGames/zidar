@@ -663,7 +663,12 @@ function toolchain()
 			else
 				premake.vstudio.toolset = "ClangCL"	-- VS built-in clang-cl toolset (VC\Tools\Llvm); "LLVM-vsXXXX" is not a real toolset name
 			end
-			location (path.join(RG_ZIDAR_BUILD_DIR, "projects", _ACTION .. "-clang"))
+			-- NO location override here. getTargetCompiler() already returns the --vs value verbatim ("vs2026-clang"),
+			-- so the location set above is RG_ZIDAR_BUILD_DIR/<os>/vs2026-clang/<solution>/projects/<action> - the same
+			-- shape as MSVC, and the sibling of the build outputs, which getSolutionBaseDir() puts under that very
+			-- directory. Overriding it to a flat RG_ZIDAR_BUILD_DIR/projects/<action>-clang split the projects away
+			-- from their own output tree: every consumer then needed two unrelated paths for one toolchain, and
+			-- scripts that derived one from the other silently pointed at the MSVC tree.
 		elseif "winstore100" == _OPTIONS["vs"] then
 			premake.vstudio.toolset = "v141"
 			premake.vstudio.storeapp = "10.0"
@@ -826,7 +831,10 @@ function commonConfig(_platform, _configuration)
 			"-Wno-unused-private-field",				-- fields used only in some configs
 			"-Wno-inconsistent-missing-override",		-- style-only; MSVC does not warn
 			"-Wno-pointer-bool-conversion",				-- `array ? arr : \"\"` on fixed char[] fields - address always true, but harmless (empty array == \"\")
-			"-Wno-rtti",								-- dynamic_cast under /GR- (mostly Qt headers; the one Omni site is a pre-existing dead branch, flagged separately)
+			-- -Wrtti is deliberately NOT suppressed. It fires when dynamic_cast is compiled under clang-cl /GR-
+			-- (= -fno-rtti-data: __cpp_rtti still defined, no RTTI data emitted) and that is a guaranteed runtime crash,
+			-- not noise - it was the StartPageWidget crash on the first Qt slot dispatch. NoRTTI projects now get
+			-- -fno-rtti (see configurations.lua), which makes any such site a hard error instead.
 			"-Wno-format",								-- Win32 DWORD vs %u (same 32-bit width on Windows/LLP64) - verified benign
 			"-Wno-infinite-recursion",					-- the crashtestRecurse stack-overflow crash-handler test (already #pragma 4717 for MSVC)
 			"-Wno-sign-compare",						-- signed/unsigned index compares, ubiquitous and benign here
@@ -1496,9 +1504,24 @@ function commonConfig(_platform, _configuration)
 	-- GCC/Clang based toolchains use -flto for both compile and link steps.
 	if _OPTIONS["with-ltcg"] and _configuration == "retail" then
 
-		configuration { "vs*", "not orbis", "not prospero", _platform, _configuration }
-			buildoptions { "/GL" }
-			linkoptions  { "/LTCG" }
+		-- clang-cl (--vs=vsXXXX-clang, the default toolchain): /GL is NOT an LTO switch there. clang-cl accepts it
+		-- and drops it ("argument unused during compilation" - a warning our -Qunused-arguments hides), and
+		-- MSBuild's ClangCL toolset blanks the WholeProgramOptimization / LinkTimeCodeGeneration properties
+		-- outright. Net effect: every retail clang build shipped with NO link-time optimization at all. Under clang
+		-- the switch is -flto=thin on the COMPILE side only: the objects (and the static libs llvm-lib archives them
+		-- into) carry LLVM bitcode, and lld-link runs the LTO pipeline on sight of it - no link switch needed
+		-- (/LTCG would be dropped by the toolset anyway). ThinLTO rather than full: the per-module parallel backend
+		-- keeps the 40 MB app's link in the tens of seconds, and it is what delivers the cross-TU inlining and
+		-- whole-program dead-stripping that /GL + /LTCG stand for on MSVC.
+		local vsClangCl = _OPTIONS["vs"] ~= nil and _OPTIONS["vs"] ~= "vs2017-clang" and _OPTIONS["vs"]:find("-clang", 1, true) ~= nil
+		if vsClangCl then
+			configuration { "vs*", "not orbis", "not prospero", _platform, _configuration }
+				buildoptions { "-flto=thin" }
+		else
+			configuration { "vs*", "not orbis", "not prospero", _platform, _configuration }
+				buildoptions { "/GL" }
+				linkoptions  { "/LTCG" }
+		end
 
 		configuration { "linux-gcc* or linux-clang* or mingw-* or osx*", _platform, _configuration }
 			buildoptions { "-flto" }
@@ -1514,21 +1537,24 @@ function commonConfig(_platform, _configuration)
 	-- they put each function and each global into its own COMDAT, so the linker can drop them individually
 	-- instead of only whole object files.
 	--
-	-- /OPT:ICF is ENABLED, as a deliberate, informed trade - not an oversight. It folds byte-identical functions
-	-- (and read-only data) onto ONE address, so the size win is real, but the cost is equally real and lands on
-	-- OUR OWN binaries rather than the profiled target:
+	-- /OPT:ICF is DELIBERATELY OFF (was on until 2026-08-30). ICF folds byte-identical functions (and read-only
+	-- data) onto ONE address for a size win, but the cost lands on OUR OWN binaries' symbolication:
 	--
 	--   * A folded address resolves to whichever of the merged functions the PDB names first. Our crash reports
-	--     (rg_crash) and any self-profiling stack can therefore name a plausible WRONG sibling - typically a
-	--     same-shaped template instantiation or a trivial forwarder. Frames do not vanish, they mis-attribute.
+	--     (rg_crash) and any self-profiling stack then name a plausible WRONG sibling - typically a same-shaped
+	--     template instantiation or a trivial forwarder. Frames do not vanish, they mis-attribute.
 	--   * Function-pointer identity across folded functions becomes true. Anything dispatching on "is this the
 	--     same callback" must not assume distinct functions have distinct addresses.
-	--   * MSVC has no "safe ICF" (there is no equivalent of gold's --icf=safe); /OPT:ICF=<n> tunes passes, not
-	--     safety. It is all or nothing.
+	--   * MSVC/lld have no "safe ICF" (no equivalent of gold's --icf=safe); /OPT:ICF=<n> tunes passes, not safety.
+	--     It is all or nothing.
 	--
-	-- This does NOT affect profiling of a TARGET process - that reads the target's own binary and PDB. It affects
-	-- only how Omni's own binaries symbolize. Revert to plain /OPT:REF if a crash report is ever traced to a
-	-- folded frame.
+	-- WHY OFF: lld-link folds more aggressively than MSVC link; on the clang-cl toolchain this collapsed ~63
+	-- functions per shipped binary onto shared addresses, so they symbolized as a sibling's name ("some symbols
+	-- cannot be resolved") - and a real crash frame (rg_gpu_hook_d3d12) surfaced as its ICF alias captureStackRefTo.
+	-- Keeping /OPT:REF (the dead-strip) but dropping /OPT:ICF restores 1:1 address->name at a modest size cost.
+	-- This never affected TARGET profiling (that reads the target's own binary/PDB) - only Omni's own symbolication.
+	-- NOTE: the Linux clang `-Wl,--icf=all` below is the same trade on that platform; drop it too if self-symbol
+	-- fidelity matters there.
 	--
 	-- GCC/Clang: -ffunction-sections/-fdata-sections are the /Gy//Gw equivalent, --gc-sections the /OPT:REF one.
 	-- --icf=all is the ICF equivalent and is gated to the linkers that accept it (lld / gold), since bfd ld does
@@ -1551,7 +1577,7 @@ function commonConfig(_platform, _configuration)
 		if isExecutable then
 
 			configuration { "vs*", "not orbis", "not prospero", _platform, _configuration }
-				linkoptions { "/OPT:REF", "/OPT:ICF" }
+				linkoptions { "/OPT:REF" }	-- /OPT:ICF DELIBERATELY OFF: see the note above (symbol fidelity > size)
 
 			configuration { "linux-gcc* or linux-clang* or mingw-*", _platform, _configuration }
 				linkoptions { "-Wl,--gc-sections" }

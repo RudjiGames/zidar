@@ -69,6 +69,23 @@ for _,config in ipairs(all_configs) do
 end
 configuration {}
 
+-- NoRTTI under clang-cl (vs*-clang): GENie emits <RuntimeTypeInfo>false</RuntimeTypeInfo>, which MSBuild's ClangCL
+-- toolset turns into /GR-. On MSVC, /GR- undefines __cpp_rtti, so RTTI-conditional code (Qt's assertObjectType in
+-- qobjectdefs_impl.h, run on EVERY slot dispatch when Q_ASSERT is live) takes its non-RTTI branch. clang-cl maps
+-- /GR- to -fno-rtti-data instead: __cpp_rtti stays DEFINED, dynamic_cast still compiles, but no complete-object
+-- locators are emitted - so the first dynamic_cast on one of our vtables crashes inside __RTDynamicCast /
+-- FindCompleteObject (observed: StartPageWidget ctor, first connect() fired). clang warns about exactly this
+-- (-Wrtti: "dynamic_cast will not work since RTTI data is disabled by /GR-") - never suppress that warning.
+-- Passing -fno-rtti restores MSVC parity (__cpp_rtti and _CPPRTTI both undefined, dynamic_cast/typeid become hard
+-- errors instead of silent crashes). Applied ONLY to projects whose flag table carries NoRTTI, so vendored code on
+-- Flags_ThirdParty (RTTI on, as under MSVC) is untouched. The gmake clang/gcc paths already emit -fno-rtti natively.
+if _OPTIONS["vs"] and string.find(_OPTIONS["vs"], "-clang", 1, true) then
+	local blk = project().blocks[1]
+	if blk and blk.flags and table.contains(blk.flags, "NoRTTI") then
+		buildoptions { "/clang:-fno-rtti" }
+	end
+end
+
 -- Regenerate embedded-shader headers once per project (config/platform neutral).
 shaderConfigure(project().name)
 
