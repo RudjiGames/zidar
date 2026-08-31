@@ -86,6 +86,36 @@ if _OPTIONS["vs"] and string.find(_OPTIONS["vs"], "-clang", 1, true) then
 	end
 end
 
+-- ---------------------------------------------------------------------------------------------------------------
+-- SIZE-OPTIMIZE THE COLD VENDORED LIBS (clang only, optimized configs only).
+--
+-- clang-cl generates 35-130% more machine code per TU than MSVC at the same -O2 (measured 2026-08-30 on the retail
+-- app-only pair), which is most of why the clang exe is bigger. The compute that actually matters for us is the
+-- CAPTURE LOADER; the vendored engines below are cold by comparison - a shader cross-compile, a disassembly for one
+-- pane, an embedding for the AI dock - so they are compiled for SIZE and the loader keeps full -O2 inlining.
+--
+-- MEASURED (retail, clang-cl, OmniProfiler.exe): 35,893,760 -> 32,232,448 B = -3.49 MB / -10.2%, at
+-- cube 0.991x and analyze 1.011x (loader untouched, within noise, outputs byte-identical). `summary`, the one
+-- workload that reaches rg_disasm through categorize.h, measured 1.040x on the median but FASTER on the min, on a
+-- noisy machine - re-measure before extending this list to anything on a hot path.
+--
+-- clang-only on purpose: /clang:-Oz is what was measured. MSVC's nearest equivalent (/O1) is a different
+-- trade and would need its own numbers. AdditionalOptions land after the /O2 from <Optimization>, so -Oz wins.
+-- ---------------------------------------------------------------------------------------------------------------
+local kSizeOptimizedProjects = {
+	["rg_disasm"]     = true,	-- Zydis x86 tables + decoder
+	["rg_spirvcross"] = true,	-- SPIRV-Cross: GLSL/HLSL/MSL back-ends
+	["llama"]         = true,	-- llama.cpp
+	["ggml"]          = true,	-- ggml kernels
+}
+if _OPTIONS["vs"] and string.find(_OPTIONS["vs"], "-clang", 1, true) and kSizeOptimizedProjects[project().name] then
+	configuration { "release" }
+		buildoptions { "/clang:-Oz" }
+	configuration { "retail" }
+		buildoptions { "/clang:-Oz" }
+	configuration {}
+end
+
 -- Regenerate embedded-shader headers once per project (config/platform neutral).
 shaderConfigure(project().name)
 

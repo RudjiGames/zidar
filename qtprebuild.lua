@@ -270,9 +270,17 @@ elseif arg[1] == "-uic" then
 	end
 elseif arg[1] == "-rcc" then
 	print("Compiling Resource file for " .. arg[2])
-	local fullRCCPath = QtToolExe.qrc.." -name \""..getFileNameNoExtNoPathFromPath( arg[2] ).."\" \""..arg[2].."\" -o \""..outputFilePath.."\""
+	-- Resource COMPRESSION. rcc ships uncompressed by default: --compress sets the level, but the gate is
+	-- --threshold, whose DEFAULT (70) demands a 70% saving before a file is stored compressed - so fonts, SVGs
+	-- and QSS all fell through it and every byte went in raw. Dropping the threshold to 5% is what actually turns
+	-- compression on; measured on Omni: OmniProfiler.qrc -38%, rg_qt.qrc -62% of the generated array.
+	-- zlib, not zstd: the vendored Qt (6.11.1) reports "Zstandard support not compiled in", and rcc then FAILS
+	-- rather than falling back. QResource inflates on first access, so this trades a little startup/first-paint
+	-- CPU for the size.
+	local RCC_COMPRESS = " --compress-algo zlib --compress 9 --threshold 5"
+	local fullRCCPath = QtToolExe.qrc..RCC_COMPRESS.." -name \""..getFileNameNoExtNoPathFromPath( arg[2] ).."\" \""..arg[2].."\" -o \""..outputFilePath.."\""
 	if windows then
-		fullRCCPath = '""'..QtToolExe.qrc..'" -name "'..getFileNameNoExtNoPathFromPath( arg[2] )..'" "'..arg[2]..'" -o "'..outputFilePath..'""'
+		fullRCCPath = '""'..QtToolExe.qrc..'"'..RCC_COMPRESS..' -name "'..getFileNameNoExtNoPathFromPath( arg[2] )..'" "'..arg[2]..'" -o "'..outputFilePath..'""'
 	end
 	if false == runProgram(fullRCCPath) then
 		print( BuildErrorWarningString( debug.getinfo(1).currentline, true, [[RCC Failed to generate ]]..outputFilePath, 6 ) ); io.stdout:flush()

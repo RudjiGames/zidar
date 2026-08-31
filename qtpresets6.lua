@@ -210,6 +210,13 @@ function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles,
 				-- mkdir syscall for every linked Qt library.
 				if #_libsToLink > 0 then
 					os.mkdir(destPath .. "/platforms")
+					-- The plugin subdirs the loop below copies INTO. qtCopyIfDifferent does mkdir the parent of its
+					-- destination, but the destination is built as destPath .. '\' .. "iconengines\qsvgicon.dll" - a doubled
+					-- separator - and path.getdirectory() of that resolves to bin\, so the copy landed in a directory that
+					-- did not exist and failed silently. platforms\ only ever worked because of the explicit mkdir above.
+					-- Symptom when it fails: every .svg QIcon is null (toolbar/dock icons and checkbox glyphs vanish).
+					os.mkdir(destPath .. "/iconengines")
+					os.mkdir(destPath .. "/imageformats")
 				end
 
 				for _, lib in ipairs( _libsToLink ) do
