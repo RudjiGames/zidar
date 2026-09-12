@@ -234,6 +234,61 @@ function optimizeForSize()
 	configuration {}
 end
 
+-- Apply profile-guided optimization to THIS project. Opt-in, called from a project's extra config.
+--
+-- WHY OPT-IN AND NOT EVERYWHERE (measured 2026-09-12): a single .profdata cannot serve a source file that is
+-- compiled into MORE THAN ONE target with different defines. rmempro, rg_cpu_profiler and rg_license are built
+-- both into the loader (OmniProfiler) and into the injected producer / 32-bit targets; the profile recorded one
+-- variant, so the other variant's functions come out with a different control-flow hash and their counts are
+-- discarded - a flood of "-Wbackend-plugin hash mismatch" warnings, and no benefit. Scoping PGO to the app, whose
+-- TUs are built exactly once and are where load time actually lives, removes both problems.
+--
+-- Two passes, driven by --with-pgo (see the option): "gen" instruments, "use"/"auto" consume the merged profile.
+-- No linker flag is needed for the instrumented pass - clang-cl embeds /DEFAULTLIB:clang_rt.profile-x86_64.lib in
+-- every object; the profile runtime's DIRECTORY has to be on the linker path, which scripts/OmniProfilerPgo.bat
+-- puts there. The gen and use passes MUST be compiled with identical flags or the hashes drift (see that script).
+function usePgo()
+	if not _OPTIONS["with-pgo"] then return end
+	_G.RG_PGO_NOTICE = _G.RG_PGO_NOTICE or {}
+	local clangCl = _OPTIONS["vs"] ~= nil and _OPTIONS["vs"] ~= "vs2017-clang" and _OPTIONS["vs"]:find("-clang", 1, true) ~= nil
+	if not clangCl then
+		if not _G.RG_PGO_TOOLCHAIN_WARNED then
+			print("WARNING: --with-pgo is implemented for the clang-cl toolsets only; ignored for this --vs value.")
+			_G.RG_PGO_TOOLCHAIN_WARNED = true
+		end
+		return
+	end
+	if _OPTIONS["with-pgo"] == "gen" then
+		configuration { "release" } buildoptions { "-fprofile-generate" }
+		configuration { "retail" }  buildoptions { "-fprofile-generate" }
+		configuration {}
+		return
+	end
+	-- ONE PROFILE PER CONFIGURATION. release and retail compile the same sources with different defines (the
+	-- protection chain, obfuscation, NDEBUG...), so a profile collected in one gives a different control-flow hash
+	-- in the other and every hot function's counts are discarded - which is exactly the "-Wbackend-plugin hash
+	-- mismatch" flood seen on a retail build against a release-trained profile. Keying the file on the config makes
+	-- that impossible: a config with no profile simply builds without PGO.
+	-- An explicit --pgo-profile overrides and is applied to both, on the caller's head.
+	local explicit = _OPTIONS["pgo-profile"]
+	for _, cfg in ipairs({ "release", "retail" }) do
+		local profile = explicit or (RG_ROOT_DIR .. "/.pgo/omni-" .. cfg .. ".profdata")
+		if os.isfile(profile) then
+			configuration { cfg }
+				buildoptions { "-fprofile-use=\"" .. profile .. "\"", "-Wno-profile-instr-out-of-date", "-Wno-profile-instr-unprofiled" }
+			configuration {}
+		elseif _OPTIONS["with-pgo"] == "use" then
+			print("ERROR: --with-pgo=use but no profile at '" .. profile .. "' - run scripts/OmniProfilerPgo.bat gen " .. cfg .. " first.")
+			os.exit(1)
+		else
+			if not _G.RG_PGO_NOTICE[cfg] then
+				print("NOTE: no PGO profile for '" .. cfg .. "' at '" .. profile .. "' - that configuration builds WITHOUT PGO. Run scripts/OmniProfilerPgo.bat all <captures-dir> " .. cfg)
+				_G.RG_PGO_NOTICE[cfg] = true
+			end
+		end
+	end
+end
+
 function getTargetOS()
 	if _cachedTargetOS then return _cachedTargetOS end
 
@@ -1566,49 +1621,6 @@ function commonConfig(_platform, _configuration)
 			linkoptions  { "-flto" }
 	end
 
-	-- Profile-guided optimization, clang-cl only, optimized configurations only. Two passes:
-	--   1. --with-pgo=gen  -> instrumented binary. Each run writes a .profraw (LLVM_PROFILE_FILE picks the path;
-	--      use a %p pattern or concurrent runs overwrite each other). Merge them with llvm-profdata.
-	--   2. --with-pgo=use  -> the real build, reading that merged .profdata.
-	-- NO LINKER FLAG IS NEEDED for the instrumented pass: clang-cl embeds /DEFAULTLIB:clang_rt.profile-x86_64.lib
-	-- (and /INCLUDE:__llvm_profile_runtime_user) in every object, so the only requirement is that LLVM's
-	-- lib/clang/<ver>/lib/windows directory is on the linker's search path - a build-script concern, not a project
-	-- one. scripts/OmniProfilerPgo.bat does that.
-	--
-	-- The two warnings are silenced deliberately: a profile always drifts from the source it is used with (that is
-	-- the point of a checked-in profile), and clang reports EVERY function that moved or is unprofiled. Without
-	-- these the build emits thousands of warnings and buries real ones. Regenerate the profile when it gets stale
-	-- rather than trusting a silent mismatch to be harmless.
-	if _OPTIONS["with-pgo"] and (_configuration == "retail" or _configuration == "release") then
-		local vsClangCl = _OPTIONS["vs"] ~= nil and _OPTIONS["vs"] ~= "vs2017-clang" and _OPTIONS["vs"]:find("-clang", 1, true) ~= nil
-		if vsClangCl then
-			if _OPTIONS["with-pgo"] == "gen" then
-				configuration { "vs*", "not orbis", "not prospero", _platform, _configuration }
-					buildoptions { "-fprofile-generate" }
-			else
-				-- "use" is the deliberate form and hard-fails on a missing profile, so a typo cannot silently cost
-				-- the optimisation. "auto" is the form the build scripts pass by default: a fresh clone with no
-				-- profile still builds, it just says so. Say it ONCE per generate, not once per project x config.
-				local profile = _OPTIONS["pgo-profile"] or (RG_ROOT_DIR .. "/.pgo/omni.profdata")
-				local have    = os.isfile(profile)
-				if not have and _OPTIONS["with-pgo"] == "use" then
-					print("ERROR: --with-pgo=use but no profile at '" .. profile .. "' - run the gen pass first (scripts/OmniProfilerPgo.bat gen).")
-					os.exit(1)
-				end
-				if not have then
-					if not _G.RG_PGO_NOTICE_SHOWN then
-						print("NOTE: --with-pgo=auto and no profile at '" .. profile .. "' - building WITHOUT PGO. Run scripts/OmniProfilerPgo.bat all <captures-dir> to make one.")
-						_G.RG_PGO_NOTICE_SHOWN = true
-					end
-				else
-					configuration { "vs*", "not orbis", "not prospero", _platform, _configuration }
-						buildoptions { "-fprofile-use=\"" .. profile .. "\"", "-Wno-profile-instr-out-of-date", "-Wno-profile-instr-unprofiled" }
-				end
-			end
-		else
-			print("WARNING: --with-pgo is implemented for the clang-cl toolsets only; ignored for this --vs value.")
-		end
-	end
 
 	-- ---------------------------------------------------------------------------------------------------------
 	-- Dead code elimination, optimized configurations only.
