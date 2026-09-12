@@ -161,8 +161,9 @@ newoption {
 	value       = "MODE",
 	description = "Profile-guided optimization for the optimized configurations (clang-cl toolsets only).",
 	allowed     = {
-		{ "gen", "instrumented build; writes a .profraw per run (set LLVM_PROFILE_FILE)" },
-		{ "use", "optimized build consuming a merged .profdata (see --pgo-profile)"      }
+		{ "gen",  "instrumented build; writes a .profraw per run (set LLVM_PROFILE_FILE)"            },
+		{ "use",  "optimized build consuming a merged .profdata; FAILS if it is missing"             },
+		{ "auto", "use the profile when one is present, build without it (with a notice) when not"   }
 	}
 }
 
@@ -220,6 +221,18 @@ if _OPTIONS["with-32bit-compiler"] then
 end
 
 local _cachedTargetOS = nil
+
+-- Build THIS project for SIZE instead of speed, in the optimized configurations only. Call it from a library's
+-- projectExtraConfig_<name>().
+function optimizeForSize()
+	local clangCl = _OPTIONS["vs"] ~= nil and _OPTIONS["vs"]:find("-clang", 1, true) ~= nil
+	local flag    = clangCl and "/clang:-Oz" or "/O1"
+	configuration { "release" }
+		buildoptions { flag }
+	configuration { "retail" }
+		buildoptions { flag }
+	configuration {}
+end
 
 function getTargetOS()
 	if _cachedTargetOS then return _cachedTargetOS end
@@ -1573,13 +1586,24 @@ function commonConfig(_platform, _configuration)
 				configuration { "vs*", "not orbis", "not prospero", _platform, _configuration }
 					buildoptions { "-fprofile-generate" }
 			else
+				-- "use" is the deliberate form and hard-fails on a missing profile, so a typo cannot silently cost
+				-- the optimisation. "auto" is the form the build scripts pass by default: a fresh clone with no
+				-- profile still builds, it just says so. Say it ONCE per generate, not once per project x config.
 				local profile = _OPTIONS["pgo-profile"] or (RG_ROOT_DIR .. "/.pgo/omni.profdata")
-				if not os.isfile(profile) then
+				local have    = os.isfile(profile)
+				if not have and _OPTIONS["with-pgo"] == "use" then
 					print("ERROR: --with-pgo=use but no profile at '" .. profile .. "' - run the gen pass first (scripts/OmniProfilerPgo.bat gen).")
 					os.exit(1)
 				end
-				configuration { "vs*", "not orbis", "not prospero", _platform, _configuration }
-					buildoptions { "-fprofile-use=\"" .. profile .. "\"", "-Wno-profile-instr-out-of-date", "-Wno-profile-instr-unprofiled" }
+				if not have then
+					if not _G.RG_PGO_NOTICE_SHOWN then
+						print("NOTE: --with-pgo=auto and no profile at '" .. profile .. "' - building WITHOUT PGO. Run scripts/OmniProfilerPgo.bat all <captures-dir> to make one.")
+						_G.RG_PGO_NOTICE_SHOWN = true
+					end
+				else
+					configuration { "vs*", "not orbis", "not prospero", _platform, _configuration }
+						buildoptions { "-fprofile-use=\"" .. profile .. "\"", "-Wno-profile-instr-out-of-date", "-Wno-profile-instr-unprofiled" }
+				end
 			end
 		else
 			print("WARNING: --with-pgo is implemented for the clang-cl toolsets only; ignored for this --vs value.")
