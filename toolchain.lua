@@ -153,7 +153,23 @@ newoption {
 
 newoption {
 	trigger     = "with-ltcg",
-	description = "Enable link time code generation (LTCG/LTO) for the retail configuration."
+	description = "Enable link time code generation (LTCG/LTO) for the optimized (release + retail) configurations."
+}
+
+newoption {
+	trigger     = "with-pgo",
+	value       = "MODE",
+	description = "Profile-guided optimization for the optimized configurations (clang-cl toolsets only).",
+	allowed     = {
+		{ "gen", "instrumented build; writes a .profraw per run (set LLVM_PROFILE_FILE)" },
+		{ "use", "optimized build consuming a merged .profdata (see --pgo-profile)"      }
+	}
+}
+
+newoption {
+	trigger     = "pgo-profile",
+	value       = "PATH",
+	description = "Merged .profdata for --with-pgo=use. Default: <repo>/.pgo/omni.profdata"
 }
 
 newoption {
@@ -1499,10 +1515,19 @@ function commonConfig(_platform, _configuration)
 			targetextension ".so"
 	end
 
-	-- Link time code generation: opt-in via --with-ltcg, retail configuration only.
+	-- Link time code generation: opt-in via --with-ltcg, for BOTH optimized configurations.
 	-- MSVC uses whole program optimization (/GL) plus /LTCG at link time, while the
 	-- GCC/Clang based toolchains use -flto for both compile and link steps.
-	if _OPTIONS["with-ltcg"] and _configuration == "retail" then
+	--
+	-- RELEASE IS INCLUDED ON PURPOSE (2026-09-12). It used to be retail-only, and the split matters because the two
+	-- packs do not ship the same binary: OmniProfilerPack.bat copies the RETAIL exe, but OmniProfilerPackDev.bat
+	-- copies the RELEASE one. So every dev-packed Omni.exe - the binary anyone actually iterates and measures on -
+	-- was built with no link-time optimization at all, while the shipped one had it. Perf numbers taken on a dev
+	-- pack were therefore pessimistic against what ships, and the dev build could not be used to sanity-check a
+	-- codegen change. The cost is link time: ThinLTO's backend is per-module and parallel, so the 40 MB app stays
+	-- in the tens of seconds, but an MSVC release link now pays full /LTCG. Drop --with-ltcg for a fast edit-run
+	-- loop if that bites.
+	if _OPTIONS["with-ltcg"] and (_configuration == "retail" or _configuration == "release") then
 
 		-- clang-cl (--vs=vsXXXX-clang, the default toolchain): /GL is NOT an LTO switch there. clang-cl accepts it
 		-- and drops it ("argument unused during compilation" - a warning our -Qunused-arguments hides), and
@@ -1526,6 +1551,39 @@ function commonConfig(_platform, _configuration)
 		configuration { "linux-gcc* or linux-clang* or mingw-* or osx*", _platform, _configuration }
 			buildoptions { "-flto" }
 			linkoptions  { "-flto" }
+	end
+
+	-- Profile-guided optimization, clang-cl only, optimized configurations only. Two passes:
+	--   1. --with-pgo=gen  -> instrumented binary. Each run writes a .profraw (LLVM_PROFILE_FILE picks the path;
+	--      use a %p pattern or concurrent runs overwrite each other). Merge them with llvm-profdata.
+	--   2. --with-pgo=use  -> the real build, reading that merged .profdata.
+	-- NO LINKER FLAG IS NEEDED for the instrumented pass: clang-cl embeds /DEFAULTLIB:clang_rt.profile-x86_64.lib
+	-- (and /INCLUDE:__llvm_profile_runtime_user) in every object, so the only requirement is that LLVM's
+	-- lib/clang/<ver>/lib/windows directory is on the linker's search path - a build-script concern, not a project
+	-- one. scripts/OmniProfilerPgo.bat does that.
+	--
+	-- The two warnings are silenced deliberately: a profile always drifts from the source it is used with (that is
+	-- the point of a checked-in profile), and clang reports EVERY function that moved or is unprofiled. Without
+	-- these the build emits thousands of warnings and buries real ones. Regenerate the profile when it gets stale
+	-- rather than trusting a silent mismatch to be harmless.
+	if _OPTIONS["with-pgo"] and (_configuration == "retail" or _configuration == "release") then
+		local vsClangCl = _OPTIONS["vs"] ~= nil and _OPTIONS["vs"] ~= "vs2017-clang" and _OPTIONS["vs"]:find("-clang", 1, true) ~= nil
+		if vsClangCl then
+			if _OPTIONS["with-pgo"] == "gen" then
+				configuration { "vs*", "not orbis", "not prospero", _platform, _configuration }
+					buildoptions { "-fprofile-generate" }
+			else
+				local profile = _OPTIONS["pgo-profile"] or (RG_ROOT_DIR .. "/.pgo/omni.profdata")
+				if not os.isfile(profile) then
+					print("ERROR: --with-pgo=use but no profile at '" .. profile .. "' - run the gen pass first (scripts/OmniProfilerPgo.bat gen).")
+					os.exit(1)
+				end
+				configuration { "vs*", "not orbis", "not prospero", _platform, _configuration }
+					buildoptions { "-fprofile-use=\"" .. profile .. "\"", "-Wno-profile-instr-out-of-date", "-Wno-profile-instr-unprofiled" }
+			end
+		else
+			print("WARNING: --with-pgo is implemented for the clang-cl toolsets only; ignored for this --vs value.")
+		end
 	end
 
 	-- ---------------------------------------------------------------------------------------------------------
