@@ -275,7 +275,11 @@ function usePgo()
 		local profile = explicit or (RG_ROOT_DIR .. "/.pgo/omni-" .. cfg .. ".profdata")
 		if os.isfile(profile) then
 			configuration { cfg }
-				buildoptions { "-fprofile-use=\"" .. profile .. "\"", "-Wno-profile-instr-out-of-date", "-Wno-profile-instr-unprofiled" }
+				-- -Wno-backend-plugin: "function control flow change detected (hash mismatch)" is the backend reporting that a
+				-- function was EDITED since the profile was trained - expected between retrainings (the stale counts are
+				-- discarded for that function only, everything else still uses the profile). It flooded every build touching
+				-- a profiled file; retrain with scripts/OmniProfilerPgo.bat all <captures-dir> when the drift matters.
+				buildoptions { "-fprofile-use=\"" .. profile .. "\"", "-Wno-profile-instr-out-of-date", "-Wno-profile-instr-unprofiled", "-Wno-backend-plugin" }
 			configuration {}
 		elseif _OPTIONS["with-pgo"] == "use" then
 			print("ERROR: --with-pgo=use but no profile at '" .. profile .. "' - run scripts/OmniProfilerPgo.bat gen " .. cfg .. " first.")
