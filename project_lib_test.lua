@@ -24,8 +24,7 @@ function addProject_lib_test(_name)
 		end
 		includedirs { projectPathTests }
 
-		local sourceFiles	= projectSourceFilesWildcard(projectPathTests)
-		local isCPP			= projectIsCPP(sourceFiles)
+		local sourceFiles, isCPP = projectSourceFiles(projectPathTests)
 
 		if isCPP then
 			language	"C++"

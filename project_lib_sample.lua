@@ -25,10 +25,10 @@ function addProject_lib_sample(_name, _sampleName)
 		-- discover them. Register the resolved path here so the project is
 		-- self-sufficient regardless of how it was added.
 		projectAddPathToCache(project().name, srcFilesPath)
-		local sourceFiles	= projectSourceFilesWildcard(srcFilesPath)
+		local sourceFiles, isCPP = projectSourceFiles(srcFilesPath)
 		files  { sourceFiles }
 
-		if projectIsCPP(sourceFiles) then
+		if isCPP then
 			language	"C++"
 		else
 			language	"C"

@@ -313,8 +313,14 @@ function qtConfigure( _platform, _configuration, _mocfiles, _uifiles, _qrcfiles,
 				print("Linking framework: " .. libsDirectory .. "/Qt" .. lib .. ".framework")
 				-- make symbolic link to header files directory
 				-- (skipped without a real Qt root: this runs at generation time)
+				-- runs per platform x configuration, but the link only needs to be made once
 				if qtAvailable then
-					os.execute("ln -s -f " .. libsDirectory .. "/Qt" .. lib .. ".framework/Versions/A/Headers/ " .. QT_PATH .. "/include/Qt" .. lib)
+					_qtHeaderLinksMade = _qtHeaderLinksMade or {}
+					local lnCmd = "ln -s -f " .. libsDirectory .. "/Qt" .. lib .. ".framework/Versions/A/Headers/ " .. QT_PATH .. "/include/Qt" .. lib
+					if not _qtHeaderLinksMade[lnCmd] then
+						_qtHeaderLinksMade[lnCmd] = true
+						os.execute(lnCmd)
+					end
 				end
 				linkoptions {
 					"-framework " .. "Qt" .. lib,

@@ -180,8 +180,6 @@ function prepareDeployment_Android(_platform, _configuration, _binDir)
 
 	sedCmd = sedCmd .. '" '
 
-	local destFiles = os.matchfiles(copyDst .. "/**.*")
-
 	cloneDirWithSed(copySrc, copyDst, sedCmd)
 
 	local logoSource = projectGetPath(project().name) .. "/" .. desc.logo_square

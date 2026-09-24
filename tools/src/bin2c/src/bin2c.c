@@ -141,18 +141,26 @@ int main(int argc, char** argv)
 	if (size == 0)
 		fprintf(fout, "\t0x00\n");
 
-	for (long j = 0; j < size; ++j)
+	/* format one line of up to 16 bytes at a time, avoids a printf call per byte */
+	static const char hex[] = "0123456789abcdef";
+	char line[1 + 16 * 5 + 2];
+	for (long j = 0; j < size; j += 16)
 	{
-		if (j % 16 == 0)
-			fprintf(fout, "\t");
-
-		fprintf(fout, "0x%02x", data[j]);
-
-		if (j < size - 1)
-			fprintf(fout, ",");
-
-		if (j % 16 == 15 || j == size - 1)
-			fprintf(fout, "\n");
+		long count = size - j < 16 ? size - j : 16;
+		char* out = line;
+		*out++ = '\t';
+		for (long k = 0; k < count; ++k)
+		{
+			unsigned char b = data[j + k];
+			*out++ = '0';
+			*out++ = 'x';
+			*out++ = hex[b >> 4];
+			*out++ = hex[b & 15];
+			if (j + k < size - 1)
+				*out++ = ',';
+		}
+		*out++ = '\n';
+		fwrite(line, 1, out - line, fout);
 	}
 
 	fprintf(fout, "};\n\n");

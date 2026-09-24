@@ -20,16 +20,18 @@ local function qtHeaderUsesQObject(_file)
 	return cached
 end
 
-local function getQtProjectFiles(_projectPath)
+local function getQtProjectFiles(_projectPath, _walk)
 	local cached = g_qtProjectFilesCache[_projectPath]
 	if cached ~= nil then
 		return cached.mocFiles, cached.uiFiles, cached.qrcFiles, cached.tsFiles
 	end
 
-	local headers  = mergeTables(os.matchfiles(_projectPath .. "/inc/**.h"), os.matchfiles(_projectPath .. "/src/**.h"))
-	local uiFiles  = os.matchfiles(_projectPath .. "/src/**.ui")
-	local qrcFiles = os.matchfiles(_projectPath .. "/src/**.qrc")
-	local tsFiles  = os.matchfiles(_projectPath .. "/src/**.ts")
+	_walk = _walk or projectWalkFiles(_projectPath)
+	local srcPath  = _projectPath .. "/src"
+	local headers  = mergeTables(filterFilesByExtension(_walk, { ".h" }, _projectPath .. "/inc"), filterFilesByExtension(_walk, { ".h" }, srcPath))
+	local uiFiles  = filterFilesByExtension(_walk, { ".ui" }, srcPath)
+	local qrcFiles = filterFilesByExtension(_walk, { ".qrc" }, srcPath)
+	local tsFiles  = filterFilesByExtension(_walk, { ".ts" }, srcPath)
 
 	local mocFiles = {}
 	for _, header in ipairs(headers) do
@@ -73,20 +75,19 @@ function addProject_qt(_name, _libraryType, _includes, _prebuildcmds, _extraQtMo
 		flags	{ Flags_QtTool }
 
 		local projectPath = projectGetPath(project().name)
-		local sourceFiles = projectSourceFilesWildcard( projectPath )
+		local sourceFiles, _, walks = projectSourceFiles( projectPath )
+		local walk        = walks[projectPath]
 		local libsToLink  =	mergeTables({ "Core", "Gui", "Widgets", "Network"}, _extraQtModules)
 
-		sourceFiles = mergeTables(sourceFiles,	{ projectPath .. "/src/**.ui"  },
-												{ projectPath .. "/src/**.qrc" },
-												{ projectPath .. "/src/**.ts"  } )
-
+		local extraExtensions = { ".ui", ".qrc", ".ts" }
 		if getTargetOS() == "windows" then
-			sourceFiles = mergeTables( sourceFiles, { projectPath .. "/src/**.rc" })
+			extraExtensions[#extraExtensions + 1] = ".rc"
 		end
+		sourceFiles = mergeTables(sourceFiles, filterFilesByExtension(walk, extraExtensions, projectPath .. "/src"))
 
 		files  { sourceFiles }
 
-		local mocFiles, uiFiles, qrcFiles, tsFiles = getQtProjectFiles(projectPath)
+		local mocFiles, uiFiles, qrcFiles, tsFiles = getQtProjectFiles(projectPath, walk)
 		
 		addPCH( projectPath .. "/src/", project().name )
 

@@ -855,28 +855,12 @@ function getBuildDirRoot(_platform, _configuration)
 	return getSolutionBaseDir() .. "/" .. _platform .. "/" .. _configuration
 end
 
-function commonConfig(_platform, _configuration)
+-- Toolchain/platform settings shared by all platforms and configurations of a project, called once per project.
+function commonConfigProject()
 
 	local isExecutable = project().kind == "ConsoleApp" or project().kind == "WindowedApp"
-	
-	local buildRoot = getBuildDirRoot(_platform, _configuration)
-	local binDir = buildRoot .. "/bin"
-	local libDir = buildRoot .. "/lib"
-	local objDir = buildRoot .. "/obj/" .. project().name
 
-	os.mkdir(binDir)
-	os.mkdir(libDir)
-	os.mkdir(objDir)
-
-	if project().kind == "StaticLib" then
-		binDir = libDir
-	end
-
-	configuration {_platform, _configuration}
-		targetdir (binDir)
-		objdir (objDir)
-		libdirs {libDir}
-		debugdir (binDir)
+	configuration {}
 
 	defines {
 		"__STDC_LIMIT_MACROS",
@@ -939,7 +923,7 @@ function commonConfig(_platform, _configuration)
 		linkoptions { "/ignore:importeddllmain" }
 	end
 
-	configuration { "vs*", "not orbis", "not prospero", _platform, _configuration }
+	configuration { "vs*", "not orbis", "not prospero" }
 		includedirs { RG_CORE_COMPAT_DIR .. "/msvc" }
 		defines {
 			"NOMINMAX",
@@ -964,36 +948,36 @@ function commonConfig(_platform, _configuration)
 			"/ignore:4221", -- LNK4221: This object file does not define any previously undefined public symbols, so it will not be used by any link operation that consumes this library
 		}
 
-	configuration { "linux*", _platform, _configuration }
+	configuration { "linux*" }
 		defines { "RG_LINUX" }
 
 	-- MSVC baseline is the universal x64 default (SSE2); SSE4.2 intrinsics remain
 	-- usable since MSVC has no /arch:SSE4.2 floor. Wider ISA targets (AVX/AVX2/...)
 	-- are opt-in via --with-avx / --with-avx2 so we don't SIGILL on older CPUs.
 
-	configuration { "vs2008", _platform, _configuration }
+	configuration { "vs2008" }
 		includedirs { RG_CORE_COMPAT_DIR .. "/msvc/pre1600" }
 
-	configuration { "x32", "vs*", "not orbis", "not prospero", _platform, _configuration }
+	configuration { "x32", "vs*", "not orbis", "not prospero" }
 		defines { "RG_WIN32", "RG_WINDOWS" }
 
-	configuration { "x64", "vs*", "not orbis", "not prospero", _platform, _configuration }
+	configuration { "x64", "vs*", "not orbis", "not prospero" }
 		defines { "RG_WIN64", "RG_WINDOWS", "_WIN64" }
 
-	configuration { "ARM", "vs*", "not orbis", "not prospero", _platform, _configuration }
+	configuration { "ARM", "vs*", "not orbis", "not prospero" }
 
-	configuration { "vs*-clang", _platform, _configuration }
+	configuration { "vs*-clang" }
 		buildoptions {
 			"-Qunused-arguments",
 		}
 
-	configuration { "x32", "vs*-clang", _platform, _configuration }
+	configuration { "x32", "vs*-clang" }
 		defines { "RG_WIN32", "RG_WINDOWS" }
 
-	configuration { "x64", "vs*-clang", _platform, _configuration }
+	configuration { "x64", "vs*-clang" }
 		defines { "RG_WIN64", "RG_WINDOWS" }
 
-	configuration { "winstore*", _platform, _configuration }
+	configuration { "winstore*" }
 		removeflags {
 			"StaticRuntime",
 			"NoBufferSecurityCheck",
@@ -1005,13 +989,13 @@ function commonConfig(_platform, _configuration)
 			"/ignore:4264" -- LNK4264: archiving object file compiled with /ZW into a static library; note that when authoring Windows Runtime types it is not recommended to link with a static library that contains Windows Runtime metadata
 		}
 
-	configuration { "*-gcc* or osx", _platform, _configuration }
+	configuration { "*-gcc* or osx" }
 		buildoptions {
 			"-Wshadow",
 			"-Wundef",
 		}
 
-	configuration { "mingw-*", _platform, _configuration }
+	configuration { "mingw-*" }
 		defines { "WIN32" }
 		includedirs { RG_CORE_COMPAT_DIR .. "/mingw" }
 
@@ -1040,14 +1024,14 @@ function commonConfig(_platform, _configuration)
 		}
 		end
 
-	configuration { "linux-*", _platform, _configuration }
+	configuration { "linux-*" }
 		if isExecutable then
 		links {
 			"pthread",
 		}
 		end
 
-	configuration { "osx-*", _platform, _configuration }
+	configuration { "osx-*" }
 		if isExecutable then
 		linkoptions {
 			"-framework Foundation",
@@ -1058,14 +1042,14 @@ function commonConfig(_platform, _configuration)
 		}
 		end
 
-	configuration { "x32", "mingw-gcc", _platform, _configuration }
+	configuration { "x32", "mingw-gcc" }
 		defines { "RG_WIN32", "RG_WINDOWS", "WINVER=0x0601", "_WIN32_WINNT=0x0601" }
 		buildoptions { "-m32" }
 		libdirs {
 			"$(MINGW)/x86_64-w64-mingw32/lib32"
 		}
 
-	configuration { "x64", "mingw-gcc", _platform, _configuration }
+	configuration { "x64", "mingw-gcc" }
 		defines { "RG_WIN64", "RG_WINDOWS", "WINVER=0x0601", "_WIN32_WINNT=0x0601" }
 		libdirs {
 			"$(GLES_X64_DIR)",
@@ -1073,7 +1057,7 @@ function commonConfig(_platform, _configuration)
 		}
 		buildoptions { "-m64" }
 
-	configuration { "mingw-clang", _platform, _configuration }
+	configuration { "mingw-clang" }
 		buildoptions {
 			"-isystem $(MINGW)/lib/gcc/x86_64-w64-mingw32/4.8.1/include/c++",
 			"-isystem $(MINGW)/lib/gcc/x86_64-w64-mingw32/4.8.1/include/c++/x86_64-w64-mingw32",
@@ -1084,18 +1068,18 @@ function commonConfig(_platform, _configuration)
 			"-Wno-error=unused-command-line-argument-hard-error-in-future",
 		}
 
-	configuration { "x32", "mingw-clang", _platform, _configuration }
+	configuration { "x32", "mingw-clang" }
 		defines { "RG_WIN32", "RG_WINDOWS", "WINVER=0x0601", "_WIN32_WINNT=0x0601" }
 		buildoptions { "-m32" }
 
-	configuration { "x64", "mingw-clang", _platform, _configuration }
+	configuration { "x64", "mingw-clang" }
 		defines { "RG_WIN64", "RG_WINDOWS", "WINVER=0x0601", "_WIN32_WINNT=0x0601" }
 		libdirs {
 			"$(GLES_X64_DIR)",
 		}
 		buildoptions { "-m64" }
 
-	configuration { "linux-clang", _platform, _configuration }
+	configuration { "linux-clang" }
 		buildoptions {
 			"-stdlib=libc++",
 		}
@@ -1103,12 +1087,12 @@ function commonConfig(_platform, _configuration)
 			"c++",
 		}
 
-	configuration { "linux-g*", _platform, _configuration }
+	configuration { "linux-g*" }
 		buildoptions {
 			"-mfpmath=sse", -- force SSE to get 32-bit and 64-bit builds deterministic.
 		}
 
-	configuration { "linux-gcc* or linux-clang*", _platform, _configuration }
+	configuration { "linux-gcc* or linux-clang*" }
 		buildoptions {
 			"-msse4.2",
 			"-Wshadow",
@@ -1124,17 +1108,17 @@ function commonConfig(_platform, _configuration)
 			"-Wl,--as-needed",
 		}
 
-	configuration { "linux-*", "x32", _platform, _configuration }
+	configuration { "linux-*", "x32" }
 		buildoptions {
 			"-m32",
 		}
 
-	configuration { "linux-*", "x64", _platform, _configuration }
+	configuration { "linux-*", "x64" }
 		buildoptions {
 			"-m64",
 		}
 
-	configuration { "linux-arm-gcc", _platform, _configuration }
+	configuration { "linux-arm-gcc" }
 		buildoptions {
 			"-Wunused-value",
 			"-Wundef",
@@ -1147,10 +1131,10 @@ function commonConfig(_platform, _configuration)
 			"-Wl,--gc-sections",
 		}
 
-	configuration { "android-*", "debug", _platform, _configuration }
+	configuration { "android-*", "debug" }
 		defines { "NDK_DEBUG=1" }
 
-	configuration { "android-*", _platform, _configuration }
+	configuration { "android-*" }
 		defines { "RG_ANDROID" }
 		targetprefix ("lib")
 		flags {
@@ -1194,7 +1178,7 @@ function commonConfig(_platform, _configuration)
 		}
 		end
 
-	configuration { "android-arm", _platform, _configuration }
+	configuration { "android-arm" }
 		buildoptions {
 			"--target=armv7-none-linux-android" .. androidApiLevel,
 			"-mthumb",
@@ -1207,7 +1191,7 @@ function commonConfig(_platform, _configuration)
 			"-march=armv7-a",
 		}
 
-	configuration { "android-arm64", _platform, _configuration }
+	configuration { "android-arm64" }
 		buildoptions {
 			"--target=aarch64-none-linux-android" .. androidApiLevel,
 		}
@@ -1215,7 +1199,7 @@ function commonConfig(_platform, _configuration)
 			"--target=aarch64-none-linux-android" .. androidApiLevel,
 		}
 
-	configuration { "android-x86", _platform, _configuration }
+	configuration { "android-x86" }
 		buildoptions {
 			"--target=i686-none-linux-android" .. androidApiLevel,
 			"-mtune=atom",
@@ -1227,7 +1211,7 @@ function commonConfig(_platform, _configuration)
 			"--target=i686-none-linux-android" .. androidApiLevel,
 		}
 
-	configuration { "android-x86_64", _platform, _configuration }
+	configuration { "android-x86_64" }
 		buildoptions {
 			"--target=x86_64-none-linux-android" .. androidApiLevel,
 		}
@@ -1235,7 +1219,7 @@ function commonConfig(_platform, _configuration)
 			"--target=x86_64-none-linux-android" .. androidApiLevel,
 		}
 		
-	configuration { "wasm2js or wasm", _platform, _configuration }
+	configuration { "wasm2js or wasm" }
 		defines { "RG_ASMJS" }
 		buildoptions {
 			"-Wunused-value",
@@ -1252,7 +1236,7 @@ function commonConfig(_platform, _configuration)
 			"Optimize"
 		}
 
-	configuration { "linux-ppc64le*", _platform, _configuration }
+	configuration { "linux-ppc64le*" }
 		buildoptions {
 			"-fsigned-char",
 			"-Wunused-value",
@@ -1267,7 +1251,7 @@ function commonConfig(_platform, _configuration)
 			"-Wl,--gc-sections",
 		}
 
-	configuration { "linux-riscv64*", _platform, _configuration }
+	configuration { "linux-riscv64*" }
 		buildoptions {
 			"-Wunused-value",
 			"-Wundef",
@@ -1281,11 +1265,11 @@ function commonConfig(_platform, _configuration)
 			"-Wl,--gc-sections",
 		}
 
-	configuration { "freebsd", _platform, _configuration }
+	configuration { "freebsd" }
 		defines { "RG_FREEBSD" }
 		includedirs { RG_CORE_COMPAT_DIR .. "/freebsd" }
 
-	configuration { "durango", _platform, _configuration }
+	configuration { "durango" }
 		includedirs { RG_CORE_COMPAT_DIR .. "/msvc"	}
 		removeflags { 
 			"StaticRuntime", 
@@ -1295,7 +1279,7 @@ function commonConfig(_platform, _configuration)
 		linkoptions { "/ignore:4264" }
 
 
-	configuration { "Xbox360", _platform, _configuration }
+	configuration { "Xbox360" }
 		defines { "RG_XBOX360" }
 		includedirs { RG_CORE_COMPAT_DIR .. "/msvc" }
 		defines {
@@ -1303,7 +1287,7 @@ function commonConfig(_platform, _configuration)
 			"_XBOX",
 		}
 
-	configuration { "osx-x64", _platform, _configuration }
+	configuration { "osx-x64" }
 		defines { "RG_OSX" }
 		linkoptions {
 			"-arch x86_64",
@@ -1314,7 +1298,7 @@ function commonConfig(_platform, _configuration)
 			"-target x86_64-apple-macos" .. (#macosPlatform > 0 and macosPlatform or "13.0"),
 		}
 
-	configuration { "osx-arm64", _platform, _configuration }
+	configuration { "osx-arm64" }
 		defines { "RG_OSX" }
 		linkoptions {
 			"-arch arm64",
@@ -1325,7 +1309,7 @@ function commonConfig(_platform, _configuration)
 			"-Wno-unused-command-line-argument",
 		}
 	
-	configuration { "osx*", _platform, _configuration }
+	configuration { "osx*" }
 		buildoptions {
 			"-Wfatal-errors",
 			"-Wunused-value",
@@ -1333,7 +1317,7 @@ function commonConfig(_platform, _configuration)
 		}
 		includedirs { RG_CORE_COMPAT_DIR .. "/osx" }
 
-	configuration { "ios*", _platform, _configuration }
+	configuration { "ios*" }
 		defines { "RG_IOS" }
 		linkoptions {
 			"-lc++",
@@ -1345,7 +1329,7 @@ function commonConfig(_platform, _configuration)
 		}
 		includedirs { RG_CORE_COMPAT_DIR .. "/ios" }
 
-	configuration { "ios-arm", _platform, _configuration }
+	configuration { "ios-arm" }
 		linkoptions {
 			"-arch armv7",
 		}
@@ -1353,7 +1337,7 @@ function commonConfig(_platform, _configuration)
 			"-arch armv7",
 		}
 
-	configuration { "ios-arm64", _platform, _configuration }
+	configuration { "ios-arm64" }
 		linkoptions {
 			"-arch arm64",
 		}
@@ -1361,7 +1345,7 @@ function commonConfig(_platform, _configuration)
 			"-arch arm64",
 		}
 
-	configuration { "ios-arm*", _platform, _configuration }
+	configuration { "ios-arm*" }
 		linkoptions {
 			"--sysroot=/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS" ..iosPlatform .. ".sdk",
 			"-L/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS" ..iosPlatform .. ".sdk/usr/lib/system",
@@ -1373,7 +1357,7 @@ function commonConfig(_platform, _configuration)
 			"-fembed-bitcode",
 		}
 
-	configuration { "xros*", _platform, _configuration }
+	configuration { "xros*" }
 		defines { "RG_XROS" }
 		linkoptions {
 			"-lc++",
@@ -1385,7 +1369,7 @@ function commonConfig(_platform, _configuration)
 		}
 		includedirs { RG_CORE_COMPAT_DIR .. "/ios" }
 
-	configuration { "xros-arm64", _platform, _configuration }
+	configuration { "xros-arm64" }
 		linkoptions {
 			"--sysroot=/Applications/Xcode.app/Contents/Developer/Platforms/XROS.platform/Developer/SDKs/XROS" ..xrosPlatform.. ".sdk",
 			"-L/Applications/Xcode.app/Contents/Developer/Platforms/XROS.platform/Developer/SDKs/XROS" ..xrosPlatform .. ".sdk/usr/lib/system",
@@ -1396,7 +1380,7 @@ function commonConfig(_platform, _configuration)
 			"--sysroot=/Applications/Xcode.app/Contents/Developer/Platforms/XROS.platform/Developer/SDKs/XROS" ..xrosPlatform .. ".sdk",
 		}
 
-	configuration { "xros-simulator", _platform, _configuration }
+	configuration { "xros-simulator" }
 		linkoptions {
 			"--sysroot=/Applications/Xcode.app/Contents/Developer/Platforms/XRSimulator.platform/Developer/SDKs/XRSimulator" ..xrosPlatform.. ".sdk",
 			"-L/Applications/Xcode.app/Contents/Developer/Platforms/XRSimulator.platform/Developer/SDKs/XRSimulator" ..xrosPlatform .. ".sdk/usr/lib/system",
@@ -1406,7 +1390,7 @@ function commonConfig(_platform, _configuration)
 			"--sysroot=/Applications/Xcode.app/Contents/Developer/Platforms/XRSimulator.platform/Developer/SDKs/XRSimulator" ..xrosPlatform .. ".sdk",
 		}
 
-	configuration { "ios-simulator", _platform, _configuration }
+	configuration { "ios-simulator" }
 		linkoptions {
 			"--sysroot=/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator" ..iosPlatform .. ".sdk",
 			"-L/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator" ..iosPlatform .. ".sdk/usr/lib/system",
@@ -1417,7 +1401,7 @@ function commonConfig(_platform, _configuration)
 			"--sysroot=/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator" ..iosPlatform .. ".sdk",
 		}
 
-	configuration { "tvos*", _platform, _configuration }
+	configuration { "tvos*" }
 		defines { "RG_TVOS" }
 		linkoptions {
 			"-lc++",
@@ -1429,7 +1413,7 @@ function commonConfig(_platform, _configuration)
 		}
 		includedirs { RG_CORE_COMPAT_DIR .. "/ios" }
 
-	configuration { "tvos-arm64", _platform, _configuration }
+	configuration { "tvos-arm64" }
 		linkoptions {
 			"-mtvos-version-min=9.0",
 			"-arch arm64",
@@ -1444,7 +1428,7 @@ function commonConfig(_platform, _configuration)
 			"--sysroot=/Applications/Xcode.app/Contents/Developer/Platforms/AppleTVOS.platform/Developer/SDKs/AppleTVOS" ..tvosPlatform .. ".sdk",
 		}
 
-	configuration { "tvos-simulator", _platform, _configuration }
+	configuration { "tvos-simulator" }
 		linkoptions {
 			"--sysroot=/Applications/Xcode.app/Contents/Developer/Platforms/AppleTVSimulator.platform/Developer/SDKs/AppleTVSimulator" ..tvosPlatform .. ".sdk",
 			"-L/Applications/Xcode.app/Contents/Developer/Platforms/AppleTVSimulator.platform/Developer/SDKs/AppleTVSimulator" ..tvosPlatform .. ".sdk/usr/lib/system",
@@ -1455,7 +1439,7 @@ function commonConfig(_platform, _configuration)
 			"--sysroot=/Applications/Xcode.app/Contents/Developer/Platforms/AppleTVSimulator.platform/Developer/SDKs/AppleTVSimulator" ..tvosPlatform .. ".sdk",
 		}
 
-	configuration { "orbis", _platform, _configuration }
+	configuration { "orbis" }
 		defines { "RG_ORBIS" }
 		includedirs {
 			RG_CORE_COMPAT_DIR .. "/freebsd",
@@ -1470,7 +1454,7 @@ function commonConfig(_platform, _configuration)
 			"SceUserService_stub_weak",
 			"SceIme_stub_weak"
 		}
-	configuration { "prospero", _platform, _configuration }
+	configuration { "prospero" }
 		defines { "RG_PROSPERO" }
 		includedirs {
 			RG_CORE_COMPAT_DIR .. "/freebsd",
@@ -1486,7 +1470,7 @@ function commonConfig(_platform, _configuration)
 			"SceIme_stub_weak"
 		}
 
-	configuration { "rpi", _platform, _configuration }
+	configuration { "rpi" }
 		defines { "RG_RPI" }
 		libdirs {
 			path.join(RG_ZIDAR_BUILD_DIR, "lib/rpi"),
@@ -1513,9 +1497,7 @@ function commonConfig(_platform, _configuration)
 			"-Wl,--gc-sections",
 		}
 
-	configuration { "riscv", _platform, _configuration }
-		targetdir (path.join(RG_ZIDAR_BUILD_DIR, "riscv/bin"))
-		objdir (path.join(RG_ZIDAR_BUILD_DIR, "riscv/obj"))
+	configuration { "riscv" }
 		defines {
 			"RG_RISCV",
 			"__BSD_VISIBLE",
@@ -1531,7 +1513,7 @@ function commonConfig(_platform, _configuration)
 			"--sysroot=$(FREEDOM_E_SDK)/work/build/riscv-gnu-toolchain/riscv64-unknown-elf/prefix/riscv64-unknown-elf",
 		}
 
-	configuration { "durango", _platform, _configuration }
+	configuration { "durango" }
 		defines { "RG_DURANGO", "NOMINMAX" }
 		links {
 			"d3d11_x",
@@ -1540,7 +1522,7 @@ function commonConfig(_platform, _configuration)
 			"kernelx"
 		}
 
-	configuration { "switch", _platform, _configuration }
+	configuration { "switch" }
 		defines { "RG_SWITCH" }
 		links {
 			"c",
@@ -1560,31 +1542,31 @@ function commonConfig(_platform, _configuration)
 			os.getenv("NINTENDO_SDK_ROOT") .. "/Common/Configs/Targets/NX-NXFP2-a64/Include"
 		}
 		end
-	configuration { "switch", "debug", _platform, _configuration }
+	configuration { "switch", "debug" }
 		defines { "NN_SDK_BUILD_DEBUG" }
-	configuration { "switch", "release", _platform, _configuration }
+	configuration { "switch", "release" }
 		defines { "NN_SDK_BUILD_DEVELOP" }
-	configuration { "switch", "retail", _platform, _configuration }
+	configuration { "switch", "retail" }
 		defines { "NN_SDK_BUILD_RELEASE" }
 
 	if isExecutable then
-		configuration { "mingw-clang", _platform, _configuration }
+		configuration { "mingw-clang" }
 			kind "ConsoleApp"
 
-		configuration { "wasm2js or wasm", _platform, _configuration }
+		configuration { "wasm2js or wasm" }
 			kind "ConsoleApp"
 			targetextension ".html"
 
-		configuration { "mingw*", _platform, _configuration }
+		configuration { "mingw*" }
 			targetextension ".exe"
 
-		configuration { "orbis", _platform, _configuration }
+		configuration { "orbis" }
 			targetextension ".elf"
 
-		configuration { "prospero", _platform, _configuration }
+		configuration { "prospero" }
 			targetextension ".self"
 
-		configuration { "android*", _platform, _configuration }
+		configuration { "android*" }
 			kind "ConsoleApp"
 			targetextension ".so"
 	end
@@ -1601,7 +1583,7 @@ function commonConfig(_platform, _configuration)
 	-- codegen change. The cost is link time: ThinLTO's backend is per-module and parallel, so the 40 MB app stays
 	-- in the tens of seconds, but an MSVC release link now pays full /LTCG. Drop --with-ltcg for a fast edit-run
 	-- loop if that bites.
-	if _OPTIONS["with-ltcg"] and (_configuration == "retail" or _configuration == "release") then
+	if _OPTIONS["with-ltcg"] then
 
 		-- clang-cl (--vs=vsXXXX-clang, the default toolchain): /GL is NOT an LTO switch there. clang-cl accepts it
 		-- and drops it ("argument unused during compilation" - a warning our -Qunused-arguments hides), and
@@ -1614,15 +1596,15 @@ function commonConfig(_platform, _configuration)
 		-- whole-program dead-stripping that /GL + /LTCG stand for on MSVC.
 		local vsClangCl = _OPTIONS["vs"] ~= nil and _OPTIONS["vs"] ~= "vs2017-clang" and _OPTIONS["vs"]:find("-clang", 1, true) ~= nil
 		if vsClangCl then
-			configuration { "vs*", "not orbis", "not prospero", _platform, _configuration }
+			configuration { "vs*", "not orbis", "not prospero", "release or retail" }
 				buildoptions { "-flto=thin" }
 		else
-			configuration { "vs*", "not orbis", "not prospero", _platform, _configuration }
+			configuration { "vs*", "not orbis", "not prospero", "release or retail" }
 				buildoptions { "/GL" }
 				linkoptions  { "/LTCG" }
 		end
 
-		configuration { "linux-gcc* or linux-clang* or mingw-* or osx*", _platform, _configuration }
+		configuration { "linux-gcc* or linux-clang* or mingw-* or osx*", "release or retail" }
 			buildoptions { "-flto" }
 			linkoptions  { "-flto" }
 	end
@@ -1660,15 +1642,15 @@ function commonConfig(_platform, _configuration)
 	-- --icf=all is the ICF equivalent and is gated to the linkers that accept it (lld / gold), since bfd ld does
 	-- not take it and would fail the link rather than ignore it.
 	-- ---------------------------------------------------------------------------------------------------------
-	if _configuration == "release" or _configuration == "retail" then
+	do
 
 		-- COMPILE side: every project, including static libs. Splitting functions and globals into their own
 		-- COMDATs/sections is what gives the final link something to strip; doing it only in the executable would
 		-- leave the libraries - which is where nearly all the code is - as unsplittable blocks.
-		configuration { "vs*", "not orbis", "not prospero", _platform, _configuration }
+		configuration { "vs*", "not orbis", "not prospero", "release or retail" }
 			buildoptions { "/Gy", "/Gw" }
 
-		configuration { "linux-gcc* or linux-clang* or mingw-* or osx*", _platform, _configuration }
+		configuration { "linux-gcc* or linux-clang* or mingw-* or osx*", "release or retail" }
 			buildoptions { "-ffunction-sections", "-fdata-sections" }
 
 		-- LINK side: EXECUTABLES ONLY. A static-lib project's "link" step is lib.exe (or ar), which does not take
@@ -1676,28 +1658,77 @@ function commonConfig(_platform, _configuration)
 		-- lib and buys nothing, since stripping is a decision only the final link can make anyway.
 		if isExecutable then
 
-			configuration { "vs*", "not orbis", "not prospero", _platform, _configuration }
+			configuration { "vs*", "not orbis", "not prospero", "release or retail" }
 				linkoptions { "/OPT:REF" }	-- /OPT:ICF DELIBERATELY OFF: see the note above (symbol fidelity > size)
 
-			configuration { "linux-gcc* or linux-clang* or mingw-*", _platform, _configuration }
+			configuration { "linux-gcc* or linux-clang* or mingw-*", "release or retail" }
 				linkoptions { "-Wl,--gc-sections" }
 
 			-- ICF only where the linker actually implements it. bfd ld rejects --icf outright (it does not just
 			-- ignore it), so this stays scoped to the clang/lld toolchains rather than riding along with
 			-- --gc-sections above.
-			configuration { "linux-clang*", _platform, _configuration }
+			configuration { "linux-clang*", "release or retail" }
 				linkoptions { "-Wl,--icf=all" }
 
-			configuration { "osx*", _platform, _configuration }
+			configuration { "osx*", "release or retail" }
 				linkoptions { "-Wl,-dead_strip" }
 		end
 	end
 
 	configuration {}
+end
 
-	if _OPTIONS["deploy"] ~= nil and isExecutable then
-		prepareProjectDeployment(_platform, _configuration, binDir)
+-- Output directories for a platform/configuration.
+local function commonConfigBinDir(_platform, _configuration)
+	local buildRoot = getBuildDirRoot(_platform, _configuration)
+	local binDir = buildRoot .. "/bin"
+	local libDir = buildRoot .. "/lib"
+	local objDir = buildRoot .. "/obj/" .. project().name
+	if project().kind == "StaticLib" then
+		binDir = libDir
 	end
+	return binDir, libDir, objDir
+end
+
+-- Per platform/configuration part of the common configuration: output directories.
+-- Everything that is the same for every platform/configuration lives in commonConfigProject(), which
+-- runs once per project - emitting it for each combination multiplied GENie's configuration blocks.
+function commonConfigDirs(_platform, _configuration)
+
+	local binDir, libDir, objDir = commonConfigBinDir(_platform, _configuration)
+
+	os.mkdir(binDir)
+	os.mkdir(libDir)
+	os.mkdir(objDir)
+
+	configuration {_platform, _configuration}
+		targetdir (binDir)
+		objdir (objDir)
+		libdirs {libDir}
+		debugdir (binDir)
+
+	-- riscv builds into its own tree
+	configuration { "riscv", _platform, _configuration }
+		targetdir (path.join(RG_ZIDAR_BUILD_DIR, "riscv/bin"))
+		objdir (path.join(RG_ZIDAR_BUILD_DIR, "riscv/obj"))
+
+	configuration {}
+end
+
+-- Per platform/configuration deployment step (executables only, with --deploy).
+function commonConfigDeploy(_platform, _configuration)
+	local isExecutable = project().kind == "ConsoleApp" or project().kind == "WindowedApp"
+	if _OPTIONS["deploy"] ~= nil and isExecutable then
+		prepareProjectDeployment(_platform, _configuration, (commonConfigBinDir(_platform, _configuration)))
+	end
+end
+
+-- Full common configuration for a single platform/configuration. configurations.lua calls the parts
+-- separately so the shared part is emitted only once per project.
+function commonConfig(_platform, _configuration)
+	commonConfigDirs(_platform, _configuration)
+	commonConfigProject()
+	commonConfigDeploy(_platform, _configuration)
 end
 
 local function strip()
@@ -1818,21 +1849,40 @@ end
 -- own layout rather than the generated project location.
 local orderedVpathList = nil
 local projectRootCache = {}
+local vpathCache       = setmetatable({}, { __mode = "k" }) -- prj -> abspath -> vpath or false
 local genieGetVpath    = premake.project.getvpath
 
+-- getvpath runs several times per file, so patterns are compiled once into a flat, ordered list
 function orderedVpaths(_vpaths)
-	orderedVpathList = _vpaths
+	orderedVpathList = {}
+	vpathCache = setmetatable({}, { __mode = "k" })
+	for _, entry in ipairs(_vpaths) do
+		for replacement, patterns in pairs(entry) do
+			if type(patterns) ~= "table" then
+				patterns = { patterns }
+			end
+			local stem, stars = replacement:gsub("%*", "")
+			for _, pattern in ipairs(patterns) do
+				table.insert(orderedVpathList, {
+					stem	= stem,
+					flat	= (stars == 0),
+					lpat	= path.wildcards(pattern),
+					star	= pattern:find("*", 1, true) or (pattern:len() + 1),
+				})
+			end
+		end
+	end
 end
 
--- Same matching/trimming rules as GENie's premake.project.getvpath, for a single pattern.
-local function vpathMatch(_replacement, _pattern, _path, _fname)
-	if _path:find(path.wildcards(_pattern)) ~= 1 then
+-- Same matching/trimming rules as GENie's premake.project.getvpath, for a single compiled pattern.
+local function vpathMatch(_vp, _path, _fname)
+	if _path:find(_vp.lpat) ~= 1 then
 		return nil
 	end
 
 	-- Trim out the part of the path that matched before the first wildcard,
 	-- taking care to keep the actual file name intact.
-	local i = _pattern:find("*", 1, true) or (_pattern:len() + 1)
+	local i = _vp.star
 	local leaf
 	if i < _path:len() - _fname:len() then
 		leaf = _path:sub(i)
@@ -1844,16 +1894,28 @@ local function vpathMatch(_replacement, _pattern, _path, _fname)
 	end
 
 	-- A replacement without stars is a flat group: keep just the file name.
-	local stem, stars = _replacement:gsub("%*", "")
-	if stars == 0 then
+	if _vp.flat then
 		leaf = path.getname(leaf)
 	end
 
-	return path.join(stem, leaf)
+	return path.join(_vp.stem, leaf)
 end
 
 function premake.project.getvpath(prj, abspath)
 	if orderedVpathList then
+		local prjCache = vpathCache[prj]
+		if prjCache == nil then
+			prjCache = {}
+			vpathCache[prj] = prjCache
+		end
+		local cached = prjCache[abspath]
+		if cached then
+			return cached
+		end
+		if cached == false then
+			return genieGetVpath(prj, abspath)
+		end
+
 		local fname = path.getname(abspath)
 
 		-- Candidate paths to match against; project-root-relative is preferred when available.
@@ -1872,21 +1934,17 @@ function premake.project.getvpath(prj, abspath)
 			end
 		end
 
-		for _, entry in ipairs(orderedVpathList) do
-			for replacement, patterns in pairs(entry) do
-				if type(patterns) ~= "table" then
-					patterns = { patterns }
-				end
-				for _, pattern in ipairs(patterns) do
-					for _, candidate in ipairs(candidates) do
-						local vpath = vpathMatch(replacement, pattern, candidate, fname)
-						if vpath then
-							return path.trimdots(vpath)
-						end
-					end
+		for _, vp in ipairs(orderedVpathList) do
+			for _, candidate in ipairs(candidates) do
+				local vpath = vpathMatch(vp, candidate, fname)
+				if vpath then
+					vpath = path.trimdots(vpath)
+					prjCache[abspath] = vpath
+					return vpath
 				end
 			end
 		end
+		prjCache[abspath] = false
 	end
 
 	-- no ordered match - fall back to GENie's resolver (per-project vpaths, default path)

@@ -33,9 +33,9 @@ function addProject_lib(_name, _libType, _shared, _suffix, _disablePCH)
 
 		local srcFilesPath	= projectPath .. "/src"
 		local incFilesPath	= projectGetIncludePath(projectPath)
-		local sourceFiles	= projectSourceFilesWildcard(srcFilesPath, incFilesPath)
+		local sourceFiles, isCPP, walks = projectSourceFiles(srcFilesPath, incFilesPath)
 
-		if projectIsCPP(sourceFiles) then
+		if isCPP then
 			language	"C++"
 		else
 			language	"C"
@@ -45,12 +45,12 @@ function addProject_lib(_name, _libType, _shared, _suffix, _disablePCH)
 
 		-- Windows resource scripts (e.g. VERSIONINFO) - compiled only for Windows targets.
 		configuration { "windows" }
-			files { os.matchfiles(srcFilesPath .. "/**.rc") }
+			files { filterFilesByExtension(walks[srcFilesPath], { ".rc" }) }
 		configuration {}
 
 		local targetOS = getTargetOS()
 		if targetOS == "ios" or targetOS == "osx" then
-			files	{ srcFilesPath .. "/**.mm" }
+			files	{ filterFilesByExtension(walks[srcFilesPath], { ".mm" }) }
 		end
 
 		removefiles { projectPath .. "/tests/**.*"   }

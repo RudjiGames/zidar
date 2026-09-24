@@ -16,11 +16,11 @@ function addProject_lib_tool(_name, _libName)
 		flags	{ Flags_Libraries }
 
 		local projectPath = projectGetPath(project().name)
-		local sourceFiles = projectSourceFilesWildcard(projectPath)
+		local sourceFiles, isCPP = projectSourceFiles(projectPath)
 
 		files	{ sourceFiles }
 
-		if projectIsCPP(sourceFiles) then
+		if isCPP then
 			language	"C++"
 		else
 			language	"C"

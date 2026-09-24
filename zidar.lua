@@ -533,6 +533,69 @@ local _projectIsCPPExtensions = {
 	[".hxx"] = true,
 }
 
+-- Source extensions in the same order projectSourceFilesWildcard() lists its patterns
+local _sourceFileExtensions = { ".c", ".cpp", ".cxx", ".cc", ".h", ".hpp", ".hxx", ".inl" }
+
+-- Returns every file under _dir from a single recursive walk. GENie's os.matchfiles() walks the whole tree
+-- once per pattern, so globbing "**.c", "**.cpp", ... separately walks the same tree many times over.
+-- The file names and their order are exactly what the per-pattern globs would produce.
+function projectWalkFiles(_dir)
+	if not _dir then
+		return {}
+	end
+	if string.sub(_dir, -1) ~= "/" then
+		_dir = _dir .. "/"
+	end
+	return os.matchfiles(_dir .. "**")
+end
+
+-- Picks files with the given extensions (exact case, like a "**.ext" glob) out of a walk, optionally limited
+-- to a subdirectory. Files are grouped by extension in the order given, same as globbing each in turn.
+function filterFilesByExtension(_files, _extensions, _underDir)
+	local prefix = _underDir and (string.sub(_underDir, -1) == "/" and _underDir or (_underDir .. "/")) or nil
+	local buckets = {}
+	for i, ext in ipairs(_extensions) do
+		buckets[ext] = {}
+	end
+	for _, file in ipairs(_files) do
+		local bucket = buckets[string.match(file, "%.[^%./]*$") or ""]
+		if bucket and (prefix == nil or string.sub(file, 1, #prefix) == prefix) then
+			bucket[#bucket + 1] = file
+		end
+	end
+	local result = {}
+	for _, ext in ipairs(_extensions) do
+		for _, file in ipairs(buckets[ext]) do
+			result[#result + 1] = file
+		end
+	end
+	return result
+end
+
+-- Returns the C/C++ source and header files under the given directories (the same list the
+-- projectSourceFilesWildcard() globs expand to), whether any of them is C++, and the per
+-- directory walks so callers can pick other file types without walking again.
+function projectSourceFiles(...)
+	local files = {}
+	local walks = {}
+	local isCPP = false
+	for i = 1, select("#", ...) do
+		local dir = select(i, ...)
+		if dir then
+			local walk = projectWalkFiles(dir)
+			walks[dir] = walk
+			for _, file in ipairs(filterFilesByExtension(walk, _sourceFileExtensions)) do
+				files[#files + 1] = file
+				if not isCPP and _projectIsCPPExtensions[string.match(file, "%.[^%./]*$")] then
+					isCPP = true
+				end
+			end
+		end
+	end
+	return mergeTables(files), isCPP, walks
+end
+
+
 -- Returns true if any of the project files have a C++ extension
 function projectIsCPP(_projectFiles)
 	-- Key on a SORTED copy: the result ("does any file have a C++ extension") is order-independent, but the old
@@ -552,7 +615,11 @@ function projectIsCPP(_projectFiles)
 	end
 
 	for _, entry in ipairs(_projectFiles) do
-		if string.find(entry, "*", 1, true) ~= nil then
+		local ext = path.getextension(entry)
+		if string.find(entry, "*", 1, true) ~= nil and not string.find(ext, "[%*%?]") and not isCPPFile(entry) then
+			-- Glob with a literal, non C++ extension (e.g. "src/**.c"): it can only match non C++
+			-- files, so skip the directory walk entirely
+		elseif string.find(entry, "*", 1, true) ~= nil then
 			-- Glob pattern: inspect the files it actually expands to. The
 			-- pattern's own extension can be a wildcard (e.g. ".*" in
 			-- "src/**.*") which tells us nothing about the source language.
@@ -667,9 +734,22 @@ end
 -- Cross-platform test for a filesystem root (drive root on Windows, "/" on POSIX).
 -- A path is a root when going up one level no longer changes it. path.getabsolute
 -- normalizes "c:/", "c:", "D:\" and "/" identically, so this needs no per-OS casing.
+-- GENie's path.getabsolute() returns "" for "/" and for the parent of a top-level directory
+-- ("/home/.." -> ""), which made upward searches cycle forever once they walked past "/home"
+local function pathParentDir(_path)
+	local parent = pathGetAbsoluteCached(path.join(pathGetAbsoluteCached(_path), ".."))
+	if parent == "" then
+		parent = "/"
+	end
+	return parent
+end
+
 local function pathIsRoot(_path)
 	local abs = pathGetAbsoluteCached(_path)
-	return pathGetAbsoluteCached(path.join(abs, "..")) == abs
+	if abs == "" or abs == "/" then
+		return true
+	end
+	return pathParentDir(abs) == abs
 end
 
 local function getChildDirsCached(_dir)
@@ -767,8 +847,9 @@ local function findScriptInDirCached(_dir, _depth, _maxDepth, _scriptName)
 	end
 
 	for _, subdir in ipairs(_scriptSearchSubdirs) do
-		local candidate = path.join(absDir, subdir .. _scriptName)
-		if pathIsFileCached(candidate) then
+		-- the directory check is shared across script names, the file check is not
+		local candidate = pathIsDirCached(absDir .. "/" .. subdir:sub(1, -2)) and path.join(absDir, subdir .. _scriptName)
+		if candidate and pathIsFileCached(candidate) then
 			local result = pathGetAbsoluteCached(candidate)
 			_scriptSearchCache[cacheKey] = result
 			return result
@@ -884,7 +965,7 @@ function projectGetPath(_name, _canFail)
 			break
 		end
 
-		local parent = pathGetAbsoluteCached(path.join(searchDir, ".."))
+		local parent = pathParentDir(searchDir)
 		if parent == searchDir or (RG_ZIDAR_HOME_DIR and searchDir == pathGetAbsoluteCached(RG_ZIDAR_HOME_DIR)) then
 			break
 		end
@@ -957,7 +1038,7 @@ function projectGetScriptPath(_name, _requester)
 	-- a directory with matching name
 	local searchDir = pathGetAbsoluteCached(_WORKING_DIR)
 	while not pathIsRootPath(searchDir) do
-		local upDir = pathGetAbsoluteCached(path.join(searchDir, ".."))
+		local upDir = pathParentDir(searchDir)
 		if upDir == searchDir then
 			break
 		end
