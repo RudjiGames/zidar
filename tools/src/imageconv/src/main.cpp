@@ -16,6 +16,9 @@
 #define FPNG_DISABLE_DECODE_CRC32_CHECKS
 #include "fpng.h"
 
+#include <stdio.h>
+#include <string.h>
+
 int main(int argc, char* argv[])
 {
 	if (argc != 5)
@@ -26,15 +29,30 @@ int main(int argc, char* argv[])
 	int width		= atoi(argv[3]);
 	int height		= atoi(argv[4]);
 
+	if ((width <= 0) || (height <= 0))
+	{
+		fprintf(stderr, "imageconv: invalid destination size %sx%s\n", argv[3], argv[4]);
+		return 1;
+	}
+
+	fpng::fpng_init();
+
 	std::vector<uint8_t> pixels;
 	uint32_t srcW = 0, srcH = 0;
 	uint32_t channels;
 	uint32_t desired_channels = 4;
-	fpng::fpng_decode_file(src, pixels, srcW, srcH, channels, desired_channels);
+	int res = fpng::fpng_decode_file(src, pixels, srcW, srcH, channels, desired_channels);
+	if (res != fpng::FPNG_DECODE_SUCCESS)
+	{
+		// fpng can only decode PNG files that were written by fpng
+		fprintf(stderr, "imageconv: failed to decode '%s' (fpng error %d%s)\n", src, res,
+			res == fpng::FPNG_DECODE_NOT_FPNG ? ", PNG was not written by fpng" : "");
+		return 1;
+	}
 
-	unsigned char* dstData = new unsigned char[width*height*4];
+	unsigned char* dstData = new unsigned char[(size_t)width*height*4];
 
-	if ((srcW == width) && (srcH == height))
+	if ((srcW == (uint32_t)width) && (srcH == (uint32_t)height))
 	{
 		memcpy(dstData, pixels.data(), width * height * 4);
 	}
@@ -46,8 +64,14 @@ int main(int argc, char* argv[])
 					 STBIR_EDGE_CLAMP, STBIR_FILTER_BOX);
 	}
 
-	fpng::fpng_encode_image_to_file(dst, dstData, width, height, 4);
+	bool ok = fpng::fpng_encode_image_to_file(dst, dstData, width, height, 4);
 	delete[] dstData;
+
+	if (!ok)
+	{
+		fprintf(stderr, "imageconv: failed to write '%s'\n", dst);
+		return 1;
+	}
 
 	return 0;
 }

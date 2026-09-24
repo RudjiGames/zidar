@@ -214,17 +214,12 @@ end
 local outputDir = outputFilePath and getPath(outputFilePath) or ""
 
 local runProgram = function(command)
-	local result = 1
-	if lua_version == "5.3" then
-		local value, type
-		value, type, result = os.execute(command)
-	else
-		result = os.execute(command)
+	-- Lua 5.1 returns the exit code, Lua 5.2+ returns true/nil, "exit", code
+	local ok, _, code = os.execute(command)
+	if type(ok) == "number" then
+		return ok == 0
 	end
-	if windows then
-		return result == 0
-	end
-	return result
+	return ok == true and (code == nil or code == 0)
 end
 
 if outputDir ~= "" then

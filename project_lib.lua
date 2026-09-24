@@ -57,11 +57,11 @@ function addProject_lib(_name, _libType, _shared, _suffix, _disablePCH)
 		removefiles { projectPath .. "/samples/**.*" }
 		removefiles { projectPath .. "/tools/**.*"   }
 
-		includedirs	{
-			libsPath, 
-			incFilesPath,
-			srcFilesPath
-		}
+		includedirs	{ libsPath }
+		if incFilesPath then
+			includedirs { incFilesPath }
+		end
+		includedirs	{ srcFilesPath }
 
 		-- no need to cache, done once per project
 		if os.isdir(projectPath .. "/3rd") then

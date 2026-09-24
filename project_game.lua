@@ -10,13 +10,13 @@ function addProject_game(_name)
 	project ( _name )
 
 		-- not supported on Xcode ?
+		project().kind = "ConsoleApp"
+		kind	( project().kind )
+
 		configuration { "retail" }
-			project().kind = "WindowedApp"
-		configuration { "debug or release" }
-			project().kind = "ConsoleApp"
+			kind "WindowedApp"
 		configuration {}
 
-		kind	( project().kind )
 		uuid	( os.uuid(project().name) )
 		flags	{ Flags_Cmd }
 

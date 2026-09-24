@@ -225,7 +225,7 @@ local function zidarPath()
 	if isRunningOnWindows() then
 		str = str:gsub("/", "\\")
 	end
-	return str:match("(.*" .. pathGetSeparator() .. ")")
+	return str:match("(.*" .. pathGetSeparator() .. ")") or ("." .. pathGetSeparator())
 end
 
 RG_ZIDAR_HOME_DIR = path.getabsolute(os.getenv("HOME") or os.getenv("HOMEPATH")) -- handle Windows and Unix home paths
@@ -476,7 +476,8 @@ function checkPrerequisite(_toolName)
 			textColor(_toolName, Color.Cyan)
 				.. " is required to build the project. Please install "
 				.. textColor(_toolName, Color.Cyan)
-				.. " and make sure it's in your PATH."
+				.. " and make sure it's in your PATH.",
+			true
 		)
 	end
 end
@@ -1408,7 +1409,7 @@ function getToolForHost(_name)
 	local projectDir = projectGetPath("zidar")
 
 	if not projectDir then
-		printError("zidar project directory not found, cannot determine tool paths")
+		printError("zidar project directory not found, cannot determine tool paths", true)
 	end
 
 	local toolPath = path.getabsolute(projectDir .. "/tools/bin/")
@@ -1417,7 +1418,7 @@ function getToolForHost(_name)
 		toolPath = toolPath .. "/windows/" .. _name .. ".exe"
 	elseif os.is("linux") then
 		toolPath = toolPath .. "/linux/" .. _name
-	elseif os.is("osx") then
+	elseif os.is("macosx") then
 		toolPath = toolPath .. "/darwin/" .. _name
 	end
 
