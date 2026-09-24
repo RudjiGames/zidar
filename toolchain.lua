@@ -8,9 +8,11 @@
 
 local params = { ... }
 
+RG_ANDROID_TARGET = "24"
+
 dofile(RG_SCRIPTS_DIR .. "/deploy.lua")
 
-local androidTarget    = "24"
+local androidTarget    = RG_ANDROID_TARGET
 local androidPlatform  = "android-" .. androidTarget
 
 newoption {
@@ -352,7 +354,7 @@ function getTargetOS()
 	elseif os.get() == "macosx"  then result = "osx"
 	elseif os.get() == "windows" then result = "windows"
 	else
-		printErrorAndExit("zidar does not support current host OS " .. os.get())
+		printError("zidar does not support current host OS " .. os.get(), true)
 		return ""
 	end
 
@@ -406,7 +408,7 @@ local function androidToolchainRoot()
 			linux   = "linux-x86_64",
 			macosx  = "darwin-x86_64"
 		}
-		android.toolchainRoot = "$(ANDROID_NDK_ROOT)/toolchains/llvm/prebuilt/" .. hostTags[os.get()]
+		android.toolchainRoot = "$(ANDROID_NDK_ROOT)/toolchains/llvm/prebuilt/" .. (hostTags[os.get()] or hostTags.linux)
 	end
 
 	return android.toolchainRoot;
@@ -438,7 +440,7 @@ function getTargetCompiler()
 	if _OPTIONS["cc"] == "gcc" then
 		result = "gcc"
 	elseif (_ACTION == "ninja") and (_OPTIONS["cc"] == nil) then
-		printErrorAndExit("Ninja action must specify target os and compiler\nexample: genie --cc=gcc --os=windows ninja")
+		printError("Ninja action must specify target os and compiler\nexample: genie --cc=gcc --os=windows ninja", true)
 
 	-- gmake - android
 	elseif gcc == "android-arm"				then result = "gcc-arm"
@@ -506,7 +508,7 @@ function getTargetCompiler()
 	elseif actionUsesMSVC()					then result = _ACTION
 	elseif actionUsesXcode()				then result = _ACTION
 	else
-		printErrorAndExit("Target compiler could not be deduced from command line arguments")
+		printError("Target compiler could not be deduced from command line arguments", true)
 		return ""
 	end
 
@@ -559,7 +561,7 @@ function toolchain()
 	if _ACTION == "gmake" then
 
 		if nil == _OPTIONS["gcc"] then
-			printErrorAndExit("GCC flavor must be specified!")
+			printError("GCC flavor must be specified!", true)
 		end
 		location ( getLocationDir() )
 
@@ -580,7 +582,7 @@ function toolchain()
 		elseif "wasm2js" == _OPTIONS["gcc"] or "wasm" == _OPTIONS["gcc"] then
 
 			if not os.getenv("EMSCRIPTEN") then
-				printErrorAndExit("Please set EMSCRIPTEN environment variable to point to directory where emcc can be found.")
+				printError("Please set EMSCRIPTEN environment variable to point to directory where emcc can be found.", true)
 			end
 
 			premake.gcc.cc   = "\"$(EMSCRIPTEN)/emcc\""

@@ -161,16 +161,19 @@ function prepareDeployment_Android(_platform, _configuration, _binDir)
 	local desc = projectGetDescription(project().name)
 	if desc == nil then return end
 
-	local str_arch = "armeabi-v7a"
-	if (_OPTIONS["gcc"] == "android-x86") then 
-		str_arch = "x86"
-	end
+	local androidABIs = {
+		["android-arm"]		= "armeabi-v7a",
+		["android-arm64"]	= "arm64-v8a",
+		["android-x86"]		= "x86",
+		["android-x86_64"]	= "x86_64",
+	}
+	local str_arch = androidABIs[_OPTIONS["gcc"]] or "armeabi-v7a"
 
 	local sedCmd = "sed -e " .. '"'
 
 	sedCmd = sedAppendReplace(sedCmd, "@@BUILD_CONFIGURATION@@",	_configuration)
 	sedCmd = sedAppendReplace(sedCmd, "@@ARCH@@",					str_arch)
-	sedCmd = sedAppendReplace(sedCmd, "@@ANDROID_VER@@",			androidTarget)
+	sedCmd = sedAppendReplace(sedCmd, "@@ANDROID_VER@@",			RG_ANDROID_TARGET)
 	sedCmd = sedAppendReplace(sedCmd, "@@VERSION@@",				desc.version)
 	sedCmd = sedAppendReplace(sedCmd, "@@SHORT_NAME@@",				desc.shortname)
 	sedCmd = sedAppendReplace(sedCmd, "@@LONG_NAME@@",				desc.longname, true)

@@ -19,8 +19,10 @@ function addProject_lib_test(_name)
 		local projectPathTests	= projectPath .. "/tests"
 
 		local incFilesPath = projectGetIncludePath(projectPath)
-		includedirs {	incFilesPath,
-						projectPathTests }
+		if incFilesPath then
+			includedirs { incFilesPath }
+		end
+		includedirs { projectPathTests }
 
 		local sourceFiles	= projectSourceFilesWildcard(projectPathTests)
 		local isCPP			= projectIsCPP(sourceFiles)
