@@ -1818,21 +1818,40 @@ end
 -- own layout rather than the generated project location.
 local orderedVpathList = nil
 local projectRootCache = {}
+local vpathCache       = setmetatable({}, { __mode = "k" }) -- prj -> abspath -> vpath or false
 local genieGetVpath    = premake.project.getvpath
 
+-- getvpath runs several times per file, so patterns are compiled once into a flat, ordered list
 function orderedVpaths(_vpaths)
-	orderedVpathList = _vpaths
+	orderedVpathList = {}
+	vpathCache = setmetatable({}, { __mode = "k" })
+	for _, entry in ipairs(_vpaths) do
+		for replacement, patterns in pairs(entry) do
+			if type(patterns) ~= "table" then
+				patterns = { patterns }
+			end
+			local stem, stars = replacement:gsub("%*", "")
+			for _, pattern in ipairs(patterns) do
+				table.insert(orderedVpathList, {
+					stem	= stem,
+					flat	= (stars == 0),
+					lpat	= path.wildcards(pattern),
+					star	= pattern:find("*", 1, true) or (pattern:len() + 1),
+				})
+			end
+		end
+	end
 end
 
--- Same matching/trimming rules as GENie's premake.project.getvpath, for a single pattern.
-local function vpathMatch(_replacement, _pattern, _path, _fname)
-	if _path:find(path.wildcards(_pattern)) ~= 1 then
+-- Same matching/trimming rules as GENie's premake.project.getvpath, for a single compiled pattern.
+local function vpathMatch(_vp, _path, _fname)
+	if _path:find(_vp.lpat) ~= 1 then
 		return nil
 	end
 
 	-- Trim out the part of the path that matched before the first wildcard,
 	-- taking care to keep the actual file name intact.
-	local i = _pattern:find("*", 1, true) or (_pattern:len() + 1)
+	local i = _vp.star
 	local leaf
 	if i < _path:len() - _fname:len() then
 		leaf = _path:sub(i)
@@ -1844,16 +1863,28 @@ local function vpathMatch(_replacement, _pattern, _path, _fname)
 	end
 
 	-- A replacement without stars is a flat group: keep just the file name.
-	local stem, stars = _replacement:gsub("%*", "")
-	if stars == 0 then
+	if _vp.flat then
 		leaf = path.getname(leaf)
 	end
 
-	return path.join(stem, leaf)
+	return path.join(_vp.stem, leaf)
 end
 
 function premake.project.getvpath(prj, abspath)
 	if orderedVpathList then
+		local prjCache = vpathCache[prj]
+		if prjCache == nil then
+			prjCache = {}
+			vpathCache[prj] = prjCache
+		end
+		local cached = prjCache[abspath]
+		if cached then
+			return cached
+		end
+		if cached == false then
+			return genieGetVpath(prj, abspath)
+		end
+
 		local fname = path.getname(abspath)
 
 		-- Candidate paths to match against; project-root-relative is preferred when available.
@@ -1872,21 +1903,17 @@ function premake.project.getvpath(prj, abspath)
 			end
 		end
 
-		for _, entry in ipairs(orderedVpathList) do
-			for replacement, patterns in pairs(entry) do
-				if type(patterns) ~= "table" then
-					patterns = { patterns }
-				end
-				for _, pattern in ipairs(patterns) do
-					for _, candidate in ipairs(candidates) do
-						local vpath = vpathMatch(replacement, pattern, candidate, fname)
-						if vpath then
-							return path.trimdots(vpath)
-						end
-					end
+		for _, vp in ipairs(orderedVpathList) do
+			for _, candidate in ipairs(candidates) do
+				local vpath = vpathMatch(vp, candidate, fname)
+				if vpath then
+					vpath = path.trimdots(vpath)
+					prjCache[abspath] = vpath
+					return vpath
 				end
 			end
 		end
+		prjCache[abspath] = false
 	end
 
 	-- no ordered match - fall back to GENie's resolver (per-project vpaths, default path)

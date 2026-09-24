@@ -552,7 +552,11 @@ function projectIsCPP(_projectFiles)
 	end
 
 	for _, entry in ipairs(_projectFiles) do
-		if string.find(entry, "*", 1, true) ~= nil then
+		local ext = path.getextension(entry)
+		if string.find(entry, "*", 1, true) ~= nil and not string.find(ext, "[%*%?]") and not isCPPFile(entry) then
+			-- Glob with a literal, non C++ extension (e.g. "src/**.c"): it can only match non C++
+			-- files, so skip the directory walk entirely
+		elseif string.find(entry, "*", 1, true) ~= nil then
 			-- Glob pattern: inspect the files it actually expands to. The
 			-- pattern's own extension can be a wildcard (e.g. ".*" in
 			-- "src/**.*") which tells us nothing about the source language.
@@ -667,9 +671,22 @@ end
 -- Cross-platform test for a filesystem root (drive root on Windows, "/" on POSIX).
 -- A path is a root when going up one level no longer changes it. path.getabsolute
 -- normalizes "c:/", "c:", "D:\" and "/" identically, so this needs no per-OS casing.
+-- GENie's path.getabsolute() returns "" for "/" and for the parent of a top-level directory
+-- ("/home/.." -> ""), which made upward searches cycle forever once they walked past "/home"
+local function pathParentDir(_path)
+	local parent = pathGetAbsoluteCached(path.join(pathGetAbsoluteCached(_path), ".."))
+	if parent == "" then
+		parent = "/"
+	end
+	return parent
+end
+
 local function pathIsRoot(_path)
 	local abs = pathGetAbsoluteCached(_path)
-	return pathGetAbsoluteCached(path.join(abs, "..")) == abs
+	if abs == "" or abs == "/" then
+		return true
+	end
+	return pathParentDir(abs) == abs
 end
 
 local function getChildDirsCached(_dir)
@@ -767,8 +784,9 @@ local function findScriptInDirCached(_dir, _depth, _maxDepth, _scriptName)
 	end
 
 	for _, subdir in ipairs(_scriptSearchSubdirs) do
-		local candidate = path.join(absDir, subdir .. _scriptName)
-		if pathIsFileCached(candidate) then
+		-- the directory check is shared across script names, the file check is not
+		local candidate = pathIsDirCached(absDir .. "/" .. subdir:sub(1, -2)) and path.join(absDir, subdir .. _scriptName)
+		if candidate and pathIsFileCached(candidate) then
 			local result = pathGetAbsoluteCached(candidate)
 			_scriptSearchCache[cacheKey] = result
 			return result
@@ -884,7 +902,7 @@ function projectGetPath(_name, _canFail)
 			break
 		end
 
-		local parent = pathGetAbsoluteCached(path.join(searchDir, ".."))
+		local parent = pathParentDir(searchDir)
 		if parent == searchDir or (RG_ZIDAR_HOME_DIR and searchDir == pathGetAbsoluteCached(RG_ZIDAR_HOME_DIR)) then
 			break
 		end
@@ -957,7 +975,7 @@ function projectGetScriptPath(_name, _requester)
 	-- a directory with matching name
 	local searchDir = pathGetAbsoluteCached(_WORKING_DIR)
 	while not pathIsRootPath(searchDir) do
-		local upDir = pathGetAbsoluteCached(path.join(searchDir, ".."))
+		local upDir = pathParentDir(searchDir)
 		if upDir == searchDir then
 			break
 		end
