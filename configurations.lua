@@ -21,7 +21,7 @@ local function setSubConfig(_platform, _configuration, _is64bit, _index)
 
 	local projName = project().name
 
-	commonConfig(_platform, _configuration, _is64bit)
+	commonConfigDeploy(_platform, _configuration)
 
 	local prefix = ""
 	if _configuration == "debug" then
@@ -58,6 +58,9 @@ local function setConfig(_configuration)
 	end
 end
 
+-- Every platform/configuration sees its settings in the same order: configuration extras, output
+-- directories, the shared toolchain settings (emitted once, see commonConfigProject), then deployment,
+-- Qt and the project's extra configuration.
 configuration {}
 local all_configs = configurations()
 for _,config in ipairs(all_configs) do
@@ -65,6 +68,14 @@ for _,config in ipairs(all_configs) do
 		targetsuffix ("_" .. config)
 		defines { ExtraDefines[config] }
 		flags   { ExtraFlags[config] }
+end
+for _,config in ipairs(all_configs) do
+	for _,platform in ipairs(platforms()) do
+		commonConfigDirs(platform, config)
+	end
+end
+commonConfigProject()
+for _,config in ipairs(all_configs) do
 	setConfig(config)
 end
 configuration {}

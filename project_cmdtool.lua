@@ -17,9 +17,9 @@ function addProject_cmd(_name)
 
 		local projectPath	= projectGetPath(_name)
 		local rootPath		= path.getabsolute(path.join(projectPath, "../"))
-		local sourceFiles	= projectSourceFilesWildcard(projectPath)
+		local sourceFiles, isCPP, walks = projectSourceFiles(projectPath)
 
-		if projectIsCPP(sourceFiles) then
+		if isCPP then
 			language	"C++"
 		else
 			language	"C"
@@ -29,7 +29,7 @@ function addProject_cmd(_name)
 
 		-- Windows resource scripts (e.g. VERSIONINFO) - compiled only for Windows targets.
 		configuration { "windows" }
-			files { os.matchfiles(projectPath .. "/src/**.rc") }
+			files { filterFilesByExtension(walks[projectPath], { ".rc" }, projectPath .. "/src") }
 		configuration {}
 
 		includedirs	{ rootPath, projectPath, path.join(rootPath, _name .. "/src") }

@@ -22,9 +22,9 @@ function addProject_game(_name)
 
 		local projectPath	= projectGetPath(_name)
 		local srcFilesPath	= projectPath .. "/src"
-		local sourceFiles	= projectSourceFilesWildcard(srcFilesPath)
+		local sourceFiles, isCPP = projectSourceFiles(srcFilesPath)
 
-		if projectIsCPP(sourceFiles) then
+		if isCPP then
 			language	"C++"
 		else
 			language	"C"

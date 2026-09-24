@@ -533,6 +533,69 @@ local _projectIsCPPExtensions = {
 	[".hxx"] = true,
 }
 
+-- Source extensions in the same order projectSourceFilesWildcard() lists its patterns
+local _sourceFileExtensions = { ".c", ".cpp", ".cxx", ".cc", ".h", ".hpp", ".hxx", ".inl" }
+
+-- Returns every file under _dir from a single recursive walk. GENie's os.matchfiles() walks the whole tree
+-- once per pattern, so globbing "**.c", "**.cpp", ... separately walks the same tree many times over.
+-- The file names and their order are exactly what the per-pattern globs would produce.
+function projectWalkFiles(_dir)
+	if not _dir then
+		return {}
+	end
+	if string.sub(_dir, -1) ~= "/" then
+		_dir = _dir .. "/"
+	end
+	return os.matchfiles(_dir .. "**")
+end
+
+-- Picks files with the given extensions (exact case, like a "**.ext" glob) out of a walk, optionally limited
+-- to a subdirectory. Files are grouped by extension in the order given, same as globbing each in turn.
+function filterFilesByExtension(_files, _extensions, _underDir)
+	local prefix = _underDir and (string.sub(_underDir, -1) == "/" and _underDir or (_underDir .. "/")) or nil
+	local buckets = {}
+	for i, ext in ipairs(_extensions) do
+		buckets[ext] = {}
+	end
+	for _, file in ipairs(_files) do
+		local bucket = buckets[string.match(file, "%.[^%./]*$") or ""]
+		if bucket and (prefix == nil or string.sub(file, 1, #prefix) == prefix) then
+			bucket[#bucket + 1] = file
+		end
+	end
+	local result = {}
+	for _, ext in ipairs(_extensions) do
+		for _, file in ipairs(buckets[ext]) do
+			result[#result + 1] = file
+		end
+	end
+	return result
+end
+
+-- Returns the C/C++ source and header files under the given directories (the same list the
+-- projectSourceFilesWildcard() globs expand to), whether any of them is C++, and the per
+-- directory walks so callers can pick other file types without walking again.
+function projectSourceFiles(...)
+	local files = {}
+	local walks = {}
+	local isCPP = false
+	for i = 1, select("#", ...) do
+		local dir = select(i, ...)
+		if dir then
+			local walk = projectWalkFiles(dir)
+			walks[dir] = walk
+			for _, file in ipairs(filterFilesByExtension(walk, _sourceFileExtensions)) do
+				files[#files + 1] = file
+				if not isCPP and _projectIsCPPExtensions[string.match(file, "%.[^%./]*$")] then
+					isCPP = true
+				end
+			end
+		end
+	end
+	return mergeTables(files), isCPP, walks
+end
+
+
 -- Returns true if any of the project files have a C++ extension
 function projectIsCPP(_projectFiles)
 	-- Key on a SORTED copy: the result ("does any file have a C++ extension") is order-independent, but the old
