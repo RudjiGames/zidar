@@ -26,6 +26,8 @@ function addProject_cmd(_name)
 		end
 
 		files		{ sourceFiles }
+		-- Standalone regression tests have their own entry points and may include production sources.
+		removefiles { projectPath .. "/tests/**.*" }
 
 		-- Windows resource scripts (e.g. VERSIONINFO) - compiled only for Windows targets.
 		configuration { "windows" }
