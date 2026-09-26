@@ -181,6 +181,117 @@ os.exit = function(code)
 	_osExit(code)
 end
 
+-- Trims configuration blocks right before GENie bakes the per-configuration settings, which is where most of
+-- the generation time goes (every block's keywords are matched and its fields merged for every configuration):
+--  * blocks that cannot match any configuration of their solution are dropped. Matching uses GENie's own
+--    premake.iskeywordsmatch() with the same term sets its collapse() builds (action, os, options, config,
+--    platform, and every possible "kind" value), so a dropped block is one GENie would never have merged.
+--  * configuration() pre-creates an empty table for every list field (~120) of every block. Only the first
+--    block of a solution/project has to carry them (so every merged field ends up as a table); in later
+--    blocks they add nothing but merge work, so they are removed - except fields the block removes from.
+-- Skipped with file-level configurations (blocks are then also matched per file name and merged into file
+-- configurations that start empty) and for cmake (it scans the raw blocks of all platforms itself).
+local function trimConfigurationBlocks()
+	if premake._filelevelconfig or _ACTION == "cmake" then
+		return
+	end
+
+	local listFields = {}
+	for name, field in pairs(premake.fields) do
+		if field.kind ~= "string" and field.kind ~= "path" then
+			listFields[#listFields + 1] = name
+		end
+	end
+
+	local kinds = { false }
+	for _, kind in ipairs(premake.fields.kind and premake.fields.kind.allowed or {}) do
+		kinds[#kinds + 1] = kind:lower()
+	end
+
+	for sln in premake.solution.each() do
+		-- the term sets collapse() uses: root, then each configuration natively and per platform
+		local baseTerms = premake.getactiveterms(sln)
+		local termSets = {}
+		local function addTermSets(_config, _platform)
+			for _, kind in ipairs(kinds) do
+				local terms = {}
+				for k, v in pairs(baseTerms) do
+					terms[k] = v
+				end
+				terms.config = _config
+				terms.platform = _platform
+				if kind then
+					terms.kind = kind
+				end
+				termSets[#termSets + 1] = terms
+			end
+		end
+		addTermSets("", "native")
+		for _, cfgname in ipairs(sln.configurations or {}) do
+			addTermSets(cfgname:lower(), "native")
+			for _, pltname in ipairs(sln.platforms or {}) do
+				if pltname ~= "Native" then
+					addTermSets(cfgname:lower(), pltname:lower())
+				end
+			end
+		end
+
+		local canMatchCache = {}
+		local function canMatch(_keywords)
+			local key = table.concat(_keywords, "\0")
+			local result = canMatchCache[key]
+			if result == nil then
+				result = false
+				for _, terms in ipairs(termSets) do
+					if premake.iskeywordsmatch(_keywords, terms) then
+						result = true
+						break
+					end
+				end
+				canMatchCache[key] = result
+			end
+			return result
+		end
+
+		local function trim(_container)
+			local blocks = _container.blocks
+			local count = 1
+			for i = 2, #blocks do
+				local blk = blocks[i]
+				if canMatch(blk.keywords) then
+					-- GENie applies a block's removes (removeflags etc.) only while merging that block's own
+					-- field, so fields with pending removes must stay even when empty
+					local removes = type(blk.removes) == "table" and blk.removes or {}
+					for _, name in ipairs(listFields) do
+						local value = blk[name]
+						if type(value) == "table" and next(value) == nil and removes[name] == nil then
+							blk[name] = nil
+						end
+					end
+					count = count + 1
+					blocks[count] = blk
+				end
+			end
+			for i = #blocks, count + 1, -1 do
+				blocks[i] = nil
+			end
+		end
+
+		trim(sln)
+		for _, prj in ipairs(sln.projects) do
+			trim(prj)
+		end
+	end
+end
+
+if premake and premake.bake and premake.bake.buildconfigs then
+	local _origBuildConfigs = premake.bake.buildconfigs
+	premake.bake.buildconfigs = function(...)
+		trimConfigurationBlocks()
+		return _origBuildConfigs(...)
+	end
+end
+
 -- ensure callbacks fire after GENie generates output
 if premake and premake.action and premake.action.call then
 	local _origActionCall = premake.action.call
