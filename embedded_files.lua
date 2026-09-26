@@ -17,18 +17,10 @@
 --
 
 -- Host-tool sub-directory under zidar/tools/bin for the machine running genie.
-local function hostToolDir()
-	local host = os.get()
-	if host == "windows" then return "windows" end
-	if host == "macosx"  then return "darwin"  end
-	if host == "linux"   then return "linux"   end
-	return host
-end
-
 -- Resolves the shaderc executable, or nil if it cannot be found.
 -- Order: RG_SHADERC env override, then the binary shipped in zidar/tools/bin.
 local function shadercPath()
-	local exe = os.is("windows") and "shaderc.exe" or "shaderc"
+	local exe = isRunningOnWindows() and "shaderc.exe" or "shaderc"
 
 	local override = os.getenv("RG_SHADERC")
 	if override and os.isfile(override) then
@@ -81,16 +73,17 @@ local function quote(_s)
 	return '"' .. _s .. '"'
 end
 
--- Converts to the host's native path separators (cmd on Windows dislikes '/').
+-- Converts to the host's native path separators (cmd on Windows dislikes '/'). Host checks here and below use
+-- isRunningOnWindows(): these commands run on the machine generating, whatever the target OS (os.is()) is.
 local function native(_s)
-	if os.is("windows") then return _s:gsub("/", "\\") end
+	if isRunningOnWindows() then return (_s:gsub("/", "\\")) end
 	return _s
 end
 
 -- Command prefix that puts _dir (bgfx's redistributable DXC/d3dcompiler dlls)
 -- on PATH so shaderc can load them when compiling the dxbc/dxil variants.
 local function withDllPath(_dir)
-	if os.is("windows") then
+	if isRunningOnWindows() then
 		return 'set "PATH=' .. native(_dir) .. ';%PATH%" & '
 	end
 	return 'PATH="' .. _dir .. ':$PATH" '
@@ -215,7 +208,7 @@ function shaderConfigure(_projectName)
 
 	local dllPrefix = withDllPath(bgfxPath .. "tools/bin/" .. hostToolDir())
 	local shadercExe = native(shaderc)
-	local devnull = os.is("windows") and " >nul 2>&1" or " >/dev/null 2>&1"
+	local devnull = isRunningOnWindows() and " >nul 2>&1" or " >/dev/null 2>&1"
 
 	for _, file in ipairs(shaderFiles) do
 		local base = path.getname(file):gsub("%.sc$", "")

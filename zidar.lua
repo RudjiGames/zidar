@@ -135,6 +135,23 @@ function isRunningOnWindows()
 	return _isWindows
 end
 
+-- Name of the tools/bin/<dir> holding prebuilt tools for the machine running generation. Uses the actual
+-- host: os.get()/os.is() report the TARGET OS (e.g. "windows" for any vs* action, or whatever --os says),
+-- which picked imageconv.exe/shaderc.exe when generating Visual Studio projects on Linux.
+local _hostToolDir = nil
+function hostToolDir()
+	if _hostToolDir == nil then
+		if isRunningOnWindows() then
+			_hostToolDir = "windows"
+		elseif (os.outputof("uname -s") or ""):lower():find("darwin", 1, true) then
+			_hostToolDir = "darwin"
+		else
+			_hostToolDir = "linux"
+		end
+	end
+	return _hostToolDir
+end
+
 RG_CONSOLE_CODE_PAGE_DEFAULT = 437 -- OEM code page (default for console input/output)
 RG_CONSOLE_CODE_PAGE_UTF8 = 65001 -- UTF-8
 
@@ -1597,8 +1614,10 @@ function addLibProjects(_name)
 end
 
 --
+-- Returns the path of one of zidar's prebuilt tools (tools/bin/<host>/) for the machine running generation
 function getToolForHost(_name)
-	local projectDir = projectGetPath("zidar")
+	-- the tools ship with zidar itself; zidar is not a project, so projectGetPath("zidar") cannot find it
+	local projectDir = RG_ZIDAR_DIR or projectGetPath("zidar", true)
 
 	if not projectDir then
 		printError("zidar project directory not found, cannot determine tool paths", true)
@@ -1606,15 +1625,7 @@ function getToolForHost(_name)
 
 	local toolPath = path.getabsolute(projectDir .. "/tools/bin/")
 
-	if os.is("windows") then
-		toolPath = toolPath .. "/windows/" .. _name .. ".exe"
-	elseif os.is("linux") then
-		toolPath = toolPath .. "/linux/" .. _name
-	elseif os.is("macosx") then
-		toolPath = toolPath .. "/darwin/" .. _name
-	end
-
-	return toolPath
+	return toolPath .. "/" .. hostToolDir() .. "/" .. _name .. (isRunningOnWindows() and ".exe" or "")
 end
 
 --
