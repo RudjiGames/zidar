@@ -882,6 +882,11 @@ function commonConfigProject()
 	-- /clang:-fno-finite-math-only is proven order-independent vs /fp:fast - __FINITE_MATH_ONLY__ ends up 0 either way.
 	if _OPTIONS["vs"] and string.find(_OPTIONS["vs"], "-clang", 1, true) then
 		buildoptions {
+			-- Use MSBuild's selected toolset, not a stale Developer Prompt's VCToolsInstallDir/VCINSTALLDIR.
+			-- clang-cl derives its MSVC compatibility version from this directory; PCH creation and every
+			-- consumer must agree, including builds from the IDE. The explicit path also makes toolset
+			-- changes visible to incremental command tracking. The dot protects the trailing '\\' in quotes.
+			'/vctoolsdir "$(VCToolsInstallDir)."',
 			"/clang:-fno-finite-math-only",
 			-- Warning hygiene under clang-cl (MSVC is untouched - these live in the -clang branch only). Each silences
 			-- NOISE, not a real Omni defect: a build-flag artifact, a vendored-3rd-party header/source (llama.cpp,
