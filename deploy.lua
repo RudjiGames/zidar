@@ -56,7 +56,17 @@ local function cloneDir(_copySrc, _copyDst)
 	end
 end
 
+-- Deployment runs per platform/configuration, but the Windows templates (for example) do not depend on
+-- either, so the same clone would be redone with one sed process per file for every combination.
+local clonedWithSed = {}
+
 local function cloneDirWithSed(_copySrc, _copyDst, _sedCmd, _rename)
+	local cloneKey = _copySrc .. "\n" .. _copyDst .. "\n" .. _sedCmd
+	if clonedWithSed[cloneKey] then
+		return
+	end
+	clonedWithSed[cloneKey] = true
+
 	local srcFiles = os.matchfiles(_copySrc .. "**.*")
 
 	for _,srcFile in ipairs(srcFiles) do

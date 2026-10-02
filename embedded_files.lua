@@ -17,18 +17,10 @@
 --
 
 -- Host-tool sub-directory under zidar/tools/bin for the machine running genie.
-local function hostToolDir()
-	local host = os.get()
-	if host == "windows" then return "windows" end
-	if host == "macosx"  then return "darwin"  end
-	if host == "linux"   then return "linux"   end
-	return host
-end
-
 -- Resolves the shaderc executable, or nil if it cannot be found.
 -- Order: RG_SHADERC env override, then the binary shipped in zidar/tools/bin.
 local function shadercPath()
-	local exe = os.is("windows") and "shaderc.exe" or "shaderc"
+	local exe = isRunningOnWindows() and "shaderc.exe" or "shaderc"
 
 	local override = os.getenv("RG_SHADERC")
 	if override and os.isfile(override) then
@@ -81,16 +73,17 @@ local function quote(_s)
 	return '"' .. _s .. '"'
 end
 
--- Converts to the host's native path separators (cmd on Windows dislikes '/').
+-- Converts to the host's native path separators (cmd on Windows dislikes '/'). Host checks here and below use
+-- isRunningOnWindows(): these commands run on the machine generating, whatever the target OS (os.is()) is.
 local function native(_s)
-	if os.is("windows") then return _s:gsub("/", "\\") end
+	if isRunningOnWindows() then return (_s:gsub("/", "\\")) end
 	return _s
 end
 
 -- Command prefix that puts _dir (bgfx's redistributable DXC/d3dcompiler dlls)
 -- on PATH so shaderc can load them when compiling the dxbc/dxil variants.
 local function withDllPath(_dir)
-	if os.is("windows") then
+	if isRunningOnWindows() then
 		return 'set "PATH=' .. native(_dir) .. ';%PATH%" & '
 	end
 	return 'PATH="' .. _dir .. ':$PATH" '
@@ -143,31 +136,54 @@ local function resolveShaderInclude(_inc, _fromDir, _searchDirs)
 	return nil
 end
 
--- True only if every file _file TRANSITIVELY #includes is <= _outTime (mirrors qrc_is_up_to_date's dependency walk,
--- but recursively: bgfx shaders include headers that include more headers, so a one-level check would miss a changed
--- deep header and ship a stale shader). Any newer / unreadable / unresolvable dependency -> false. _visited breaks
--- include cycles and skips re-stat'ing shared headers.
-local function shaderDepsUpToDate(_file, _searchDirs, _outTime, _visited)
+-- Newest modification time among everything _file TRANSITIVELY #includes (mirrors qrc_is_up_to_date's dependency
+-- walk, but recursively: bgfx shaders include headers that include more headers, so a one-level check would miss a
+-- changed deep header and ship a stale shader), or false if _file or any dependency is unreadable, unresolvable or
+-- has no known time. Shaders share most of their headers, so results are memoized in _cache (one per
+-- shaderConfigure run). _inProgress breaks include cycles: a file already being walked contributes nothing again,
+-- and results computed under such a cut are not cached, since they may miss part of the cycle's dependencies.
+-- Returns the time (or false) and whether the result was cut short by a cycle.
+local function shaderDepsNewest(_file, _searchDirs, _cache, _inProgress)
+	local cached = _cache[_file]
+	if cached ~= nil then return cached, false end
+	if _inProgress[_file] then return 0, true end
+
 	local f = io.open(_file, "r")
-	if not f then return false end
+	if not f then
+		_cache[_file] = false
+		return false, false
+	end
 	local data = f:read("*a")
 	f:close()
+
+	_inProgress[_file] = true
+	local newest, cut = 0, false
 	for inc in string.gmatch(data, '#include%s+"([^"]+)"') do
 		local resolved = resolveShaderInclude(inc, path.getdirectory(_file), _searchDirs)
-		if not resolved then return false end
-		if not _visited[resolved] then
-			_visited[resolved] = true
-			local t = fileMTime(resolved)
-			if not t or t > _outTime then return false end
-			if not shaderDepsUpToDate(resolved, _searchDirs, _outTime, _visited) then return false end
+		local t = resolved and fileMTime(resolved)
+		if not t then
+			newest = false
+			break
 		end
+		local depNewest, depCut = shaderDepsNewest(resolved, _searchDirs, _cache, _inProgress)
+		cut = cut or depCut
+		if depNewest == false then
+			newest = false
+			break
+		end
+		newest = math.max(newest, t, depNewest)
 	end
-	return true
+	_inProgress[_file] = nil
+
+	if not cut or newest == false then
+		_cache[_file] = newest
+	end
+	return newest, cut
 end
 
 -- The committed .bin.h can be reused only if it post-dates the shader source, its varying.def, AND every transitively
 -- included file. Missing header / unknown source or varying time -> rebuild.
-local function shaderUpToDate(_src, _binHeader, _varying, _searchDirs)
+local function shaderUpToDate(_src, _binHeader, _varying, _searchDirs, _depCache)
 	local outTime = fileMTime(_binHeader)
 	if not outTime then return false end
 	local srcTime = fileMTime(_src)
@@ -176,7 +192,8 @@ local function shaderUpToDate(_src, _binHeader, _varying, _searchDirs)
 		local vTime = fileMTime(_varying)
 		if not vTime or vTime > outTime then return false end
 	end
-	return shaderDepsUpToDate(_src, _searchDirs, outTime, {})
+	local depsNewest = shaderDepsNewest(_src, _searchDirs, _depCache, {})
+	return depsNewest ~= false and depsNewest <= outTime
 end
 
 -- Regenerates the embedded-shader headers registered for _projectName.
@@ -215,8 +232,9 @@ function shaderConfigure(_projectName)
 
 	local dllPrefix = withDllPath(bgfxPath .. "tools/bin/" .. hostToolDir())
 	local shadercExe = native(shaderc)
-	local devnull = os.is("windows") and " >nul 2>&1" or " >/dev/null 2>&1"
+	local devnull = isRunningOnWindows() and " >nul 2>&1" or " >/dev/null 2>&1"
 
+	local depCache = {}   -- shared-header results for shaderUpToDate, valid for this run only
 	for _, file in ipairs(shaderFiles) do
 		local base = path.getname(file):gsub("%.sc$", "")
 
@@ -240,7 +258,7 @@ function shaderConfigure(_projectName)
 			-- Skip the (expensive) shaderc variant sweep when the committed .bin.h already post-dates the source,
 			-- its varying.def and every transitively #included header. Conservative: any unknown/unresolved input
 			-- rebuilds, so this never keeps a stale shader (see shaderUpToDate).
-			if not shaderUpToDate(file, binHeader, varying, searchDirs) then
+			if not shaderUpToDate(file, binHeader, varying, searchDirs, depCache) then
 				local pieces   = {}
 				local complete = true
 				for _, v in ipairs(shaderVariants(shaderType)) do
