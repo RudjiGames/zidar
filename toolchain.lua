@@ -836,10 +836,43 @@ function toolchain()
 	end
 
 	-- Per-function license-gate obfuscation (ANTIHACK Tier 2). Defines RG_OBFUSCATE_ENABLE for every project, but
-	-- only src/libs/rg_license includes rg_obfuscate.h and only an obfuscating clang fork acts on the annotations;
-	-- under MSVC or stock clang this is a no-op. See src/libs/rg_license/OBFUSCATION.md.
+	-- only src/libs/rg_license (+ the three callers that include rg_obfuscate.h) carry RG_OBF tags, so nothing else
+	-- is obfuscated. Under MSVC or STOCK clang-cl the annotations emit but no pass consumes them -> a no-op.
+	-- See src/libs/rg_license/OBFUSCATION.md and tools/obf/README.md.
+	--
+	-- WINDOWS x64 = ARKARI (tools/obf/arkari): a full LLVM/clang fork that reads the [[clang::annotate]] tokens the
+	-- header emits. Driven ENTIRELY by annotations (no pass flag): set ARKARI_HOME so the header switches to Arkari's
+	-- token dialect (RG_OBF_ARKARI), then the build (scripts/OmniProfilerBuildObfuscated.bat) points the ClangCL
+	-- toolset's LLVMInstallDir at ARKARI_HOME. o-mvll is kept only for ARM/AArch64 targets (Android/iOS capture SDK):
+	-- it CANNOT obfuscate x64, so it is never wired into the desktop build here.
 	if _OPTIONS["with-obfuscation"] then
 		defines { "RG_OBFUSCATE_ENABLE" }
+		local clangCl    = _OPTIONS["vs"] ~= nil and _OPTIONS["vs"]:find("-clang", 1, true) ~= nil
+		local arkariHome = os.getenv("ARKARI_HOME")
+		if arkariHome and arkariHome ~= "" then
+			-- Header emits Arkari-dialect annotations ("+fla +indbr ^indbr=3 ..."). The toolset redirect to Arkari's
+			-- clang is done by the build script (LLVMInstallDir), which genie cannot set.
+			defines { "RG_OBF_ARKARI" }
+			if not _G.RG_OBF_NOTICE then
+				local clang = arkariHome:gsub("\\", "/") .. "/bin/clang.exe"
+				if not os.isfile(clang) then
+					print("WARNING: ARKARI_HOME set but no clang at '" .. clang .. "' - build Arkari first: "
+						.. "tools/obf/fetch_build_arkari.ps1. Building UNOBFUSCATED until then.")
+				else
+					print("NOTE: Arkari obfuscation ENABLED (annotation-driven, " .. arkariHome .. "). The build must point "
+						.. "the ClangCL LLVMInstallDir here (OmniProfilerBuildObfuscated.bat does it); VERIFY per OBFUSCATION.md.")
+				end
+				_G.RG_OBF_NOTICE = true
+			end
+		elseif not _G.RG_OBF_NOTICE then
+			print("NOTE: --with-obfuscation is ANNOTATION-ONLY and UNOBFUSCATED under stock clang-cl/MSVC. For a real "
+				.. "Windows build set ARKARI_HOME (build it with tools/obf/fetch_build_arkari.ps1). See OBFUSCATION.md.")
+			_G.RG_OBF_NOTICE = true
+		end
+		if not clangCl and not _G.RG_OBF_TOOLSET_WARNED then
+			print("NOTE: --with-obfuscation needs the clang-cl toolset (--vs=vs2026-clang); MSVC ignores the annotations.")
+			_G.RG_OBF_TOOLSET_WARNED = true
+		end
 	end
 
 	if (_OPTIONS["with-remove-crt"] ~= nil) then
