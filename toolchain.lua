@@ -835,43 +835,22 @@ function toolchain()
 		flags { "EnableAVX2" }
 	end
 
-	-- Per-function license-gate obfuscation (ANTIHACK Tier 2). Defines RG_OBFUSCATE_ENABLE for every project, but
-	-- only src/libs/rg_license (+ the three callers that include rg_obfuscate.h) carry RG_OBF tags, so nothing else
-	-- is obfuscated. Under MSVC or STOCK clang-cl the annotations emit but no pass consumes them -> a no-op.
-	-- See src/libs/rg_license/OBFUSCATION.md and tools/obf/README.md.
-	--
-	-- WINDOWS x64 = ARKARI (tools/obf/arkari): a full LLVM/clang fork that reads the [[clang::annotate]] tokens the
-	-- header emits. Driven ENTIRELY by annotations (no pass flag): set ARKARI_HOME so the header switches to Arkari's
-	-- token dialect (RG_OBF_ARKARI), then the build (scripts/OmniProfilerBuildObfuscated.bat) points the ClangCL
-	-- toolset's LLVMInstallDir at ARKARI_HOME. o-mvll is kept only for ARM/AArch64 targets (Android/iOS capture SDK):
-	-- it CANNOT obfuscate x64, so it is never wired into the desktop build here.
+	-- Activate Arkari's pipeline; source annotations select only cold license functions.
+	-- Annotations without -irobf are a silent no-op. Protected builds must fail closed.
 	if _OPTIONS["with-obfuscation"] then
-		defines { "RG_OBFUSCATE_ENABLE" }
-		local clangCl    = _OPTIONS["vs"] ~= nil and _OPTIONS["vs"]:find("-clang", 1, true) ~= nil
+		local clangCl = _OPTIONS["vs"] ~= nil and _OPTIONS["vs"]:find("-clang", 1, true) ~= nil
 		local arkariHome = os.getenv("ARKARI_HOME")
-		if arkariHome and arkariHome ~= "" then
-			-- Header emits Arkari-dialect annotations ("+fla +indbr ^indbr=3 ..."). The toolset redirect to Arkari's
-			-- clang is done by the build script (LLVMInstallDir), which genie cannot set.
-			defines { "RG_OBF_ARKARI" }
-			if not _G.RG_OBF_NOTICE then
-				local clang = arkariHome:gsub("\\", "/") .. "/bin/clang.exe"
-				if not os.isfile(clang) then
-					print("WARNING: ARKARI_HOME set but no clang at '" .. clang .. "' - build Arkari first: "
-						.. "tools/obf/fetch_build_arkari.ps1. Building UNOBFUSCATED until then.")
-				else
-					print("NOTE: Arkari obfuscation ENABLED (annotation-driven, " .. arkariHome .. "). The build must point "
-						.. "the ClangCL LLVMInstallDir here (OmniProfilerBuildObfuscated.bat does it); VERIFY per OBFUSCATION.md.")
-				end
-				_G.RG_OBF_NOTICE = true
-			end
-		elseif not _G.RG_OBF_NOTICE then
-			print("NOTE: --with-obfuscation is ANNOTATION-ONLY and UNOBFUSCATED under stock clang-cl/MSVC. For a real "
-				.. "Windows build set ARKARI_HOME (build it with tools/obf/fetch_build_arkari.ps1). See OBFUSCATION.md.")
-			_G.RG_OBF_NOTICE = true
+		if not clangCl then
+			error("--with-obfuscation requires --vs=vs2026-clang")
 		end
-		if not clangCl and not _G.RG_OBF_TOOLSET_WARNED then
-			print("NOTE: --with-obfuscation needs the clang-cl toolset (--vs=vs2026-clang); MSVC ignores the annotations.")
-			_G.RG_OBF_TOOLSET_WARNED = true
+		if not arkariHome or arkariHome == "" or not os.isfile(arkariHome:gsub("\\", "/") .. "/bin/clang-cl.exe") then
+			error("--with-obfuscation requires ARKARI_HOME with bin/clang-cl.exe; build tools/obf/fetch_build_arkari.ps1 first")
+		end
+		defines { "RG_OBFUSCATE_ENABLE", "RG_OBF_ARKARI" }
+		buildoptions { "/clang:-mllvm", "/clang:-irobf" }
+		if not _G.RG_OBF_NOTICE then
+			print("NOTE: Arkari pipeline enabled (-irobf); protected build scripts verify compiler and final EXE.")
+			_G.RG_OBF_NOTICE = true
 		end
 	end
 
@@ -1636,6 +1615,17 @@ function commonConfigProject()
 		if vsClangCl then
 			configuration { "vs*", "not orbis", "not prospero", "release or retail" }
 				buildoptions { "-flto=thin" }
+			-- ThinLTO CACHE (2026-10-06). Without one, lld-link re-runs the LLVM backend (optimisation + codegen) for
+			-- EVERY bitcode module on EVERY link - a one-line GUI edit relinked OmniProfiler in 3 min 13 s, silently
+			-- (nothing prints between the pre-build step and "-> OmniProfiler_release.exe"), which reads as a hung
+			-- build. With the cache only the modules whose bitcode or imports changed are re-generated; the rest are
+			-- reused. Keyed by lld on module hash + options + profile, so a stale entry cannot be picked up. Lives
+			-- under the project's own IntDir (build output, never the source tree), bounded so it cannot grow forever.
+			-- Link step only: static libs are archived by llvm-lib, which does not take linker switches.
+			if project().kind ~= "StaticLib" then
+				configuration { "vs*", "not orbis", "not prospero", "release or retail" }
+					linkoptions { "/lldltocache:$(IntDir)thinlto-cache", "/lldltocachepolicy:prune_after=336h:cache_size_bytes=16g" }
+			end
 		else
 			configuration { "vs*", "not orbis", "not prospero", "release or retail" }
 				buildoptions { "/GL" }
